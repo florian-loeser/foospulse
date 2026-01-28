@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./foospulse status:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(npm run build:*)",
+      "Bash(xxd:*)",
+      "Bash(printf:*)",
+      "Bash(set +H)",
+      "Bash(grep:*)",
+      "Bash(npm install:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

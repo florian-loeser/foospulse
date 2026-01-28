@@ -1,0 +1,616 @@
+# FoosPulse Autopilot Backlog
+# Ordering: P0 items build a runnable v1 end-to-end. P1 adds governance + exports + stubs. P2 adds advanced features.
+
+items:
+  - id: APP-0001
+    title: "Initialize monorepo structure and baseline documentation"
+    type: chore
+    priority: P0
+    depends_on: []
+    description: "Create repo layout: apps/web, apps/api, apps/worker, data/artifacts, scripts, tickets, claude_prompts, and root README."
+    acceptance_criteria:
+      - "Repo contains required folders and placeholder files (no code required beyond scaffolding)."
+      - "README includes local run steps and port defaults."
+      - "CLAUDE.md exists with repo rules and Definition of Done."
+    files_touched_hint:
+      - "README.md"
+      - "CLAUDE.md"
+      - "apps/* (structure)"
+      - "data/artifacts/.gitkeep"
+
+  - id: APP-0002
+    title: "Add BACKLOG.yml and BACKLOG_STATE.json bootstrap"
+    type: chore
+    priority: P0
+    depends_on: [APP-0001]
+    description: "Create autopilot backlog artifacts with initial empty state."
+    acceptance_criteria:
+      - "BACKLOG.yml exists and is parseable YAML."
+      - "BACKLOG_STATE.json exists with keys in_progress and done as arrays."
+    files_touched_hint: ["BACKLOG.yml", "BACKLOG_STATE.json"]
+
+  - id: APP-0003
+    title: "Implement auto-next scripts (select, render, mark-done, run-next)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0002]
+    description: "Create scripts to select next backlog item, render Claude prompt, mark done, and a run-next wrapper."
+    acceptance_criteria:
+      - "Scripts run locally and operate on BACKLOG.yml and BACKLOG_STATE.json."
+      - "Selecting next respects dependencies and skips done/in_progress."
+      - "Mark-done moves item from in_progress to done."
+    files_touched_hint:
+      - "scripts/*"
+      - "BACKLOG_STATE.json"
+
+  - id: APP-0004
+    title: "Add root CLI './foospulse' for autopilot control"
+    type: feature
+    priority: P0
+    depends_on: [APP-0003]
+    description: "Expose commands: run-next, mark-done, feature <id>, retry, status."
+    acceptance_criteria:
+      - "Running ./foospulse status prints next item + in_progress + done counts."
+      - "run-next executes the wrapper script."
+      - "feature <id> puts id into in_progress and renders its prompt."
+    files_touched_hint: ["foospulse", "scripts/*", "BACKLOG_STATE.json"]
+
+  - id: APP-0005
+    title: "Create docker-compose.yml with remappable ports and shared artifacts volume"
+    type: feature
+    priority: P0
+    depends_on: [APP-0001]
+    description: "Compose services: web, api, worker, postgres, redis; mount ./data/artifacts:/data/artifacts into api and worker."
+    acceptance_criteria:
+      - "docker compose up builds and starts all services without port collisions using defaults."
+      - "Ports are configurable via WEB_PORT, API_PORT, POSTGRES_PORT, REDIS_PORT."
+      - "Artifacts directory is writable from api and worker containers."
+    files_touched_hint: ["docker-compose.yml", ".env.example"]
+
+  - id: APP-0006
+    title: "Implement API skeleton (FastAPI) with /api/health"
+    type: feature
+    priority: P0
+    depends_on: [APP-0005]
+    description: "FastAPI app boots in container and exposes /api/health with postgres+redis dependency checks."
+    acceptance_criteria:
+      - "GET /api/health returns status ok when dependencies up."
+      - "Health returns degraded if postgres or redis unreachable."
+    files_touched_hint: ["apps/api/*"]
+
+  - id: APP-0007
+    title: "Implement worker skeleton (Celery) with health/readiness check"
+    type: feature
+    priority: P0
+    depends_on: [APP-0005]
+    description: "Celery worker container starts and can run a no-op task; include a basic health signal."
+    acceptance_criteria:
+      - "Worker connects to Redis broker."
+      - "A sample task can be enqueued and executed."
+    files_touched_hint: ["apps/worker/*"]
+
+  - id: APP-0008
+    title: "Set up Postgres models (SQLAlchemy) and Alembic migration framework"
+    type: feature
+    priority: P0
+    depends_on: [APP-0006]
+    description: "Implement DB connectivity, base models, and Alembic migrations."
+    acceptance_criteria:
+      - "alembic revision --autogenerate and alembic upgrade head work in container."
+      - "DATABASE_URL is read from env."
+    files_touched_hint: ["apps/api/*", "apps/api/alembic/*"]
+
+  - id: APP-0009
+    title: "Create initial schema migrations for core tables"
+    type: feature
+    priority: P0
+    depends_on: [APP-0008]
+    description: "Add migrations for users, leagues, seasons, players, league_members, matches, match_players, match_events, rating_snapshots, stats_snapshots, artifacts."
+    acceptance_criteria:
+      - "All tables exist after migration."
+      - "Foreign keys and uniqueness constraints match spec."
+    files_touched_hint: ["apps/api/alembic/versions/*", "apps/api/app/models/*"]
+
+  - id: APP-0010
+    title: "Implement auth endpoints (register/login/me) with JWT in dev"
+    type: feature
+    priority: P0
+    depends_on: [APP-0009]
+    description: "JWT-based auth for v1 demo; production shape documented."
+    acceptance_criteria:
+      - "User can register and login to receive token."
+      - "GET /api/auth/me returns user profile when authorized."
+      - "Unauthorized calls return 401 with structured error."
+    files_touched_hint: ["apps/api/app/routes/auth.py", "apps/api/app/security/*"]
+
+  - id: APP-0011
+    title: "Implement leagues endpoints (create/list/get) and ownership membership"
+    type: feature
+    priority: P0
+    depends_on: [APP-0010]
+    description: "Create league and auto-create owner membership + default season."
+    acceptance_criteria:
+      - "POST /api/leagues creates league with unique slug."
+      - "Owner is added to league_members with role owner."
+      - "Default season is created and active."
+    files_touched_hint: ["apps/api/app/routes/leagues.py", "apps/api/app/services/leagues.py"]
+
+  - id: APP-0012
+    title: "Implement players endpoints (create/list/get) including guest players"
+    type: feature
+    priority: P0
+    depends_on: [APP-0011]
+    description: "Allow adding players to league; optional association to user via email; guest players supported."
+    acceptance_criteria:
+      - "POST creates player; nickname unique within league."
+      - "List returns all active players."
+      - "Membership enforcement: only league members can view."
+    files_touched_hint: ["apps/api/app/routes/players.py", "apps/api/app/services/players.py"]
+
+  - id: APP-0013
+    title: "Implement match logging endpoint with strict validation"
+    type: feature
+    priority: P0
+    depends_on: [APP-0012]
+    description: "Create matches with match_players and match_events; validate player counts, team balance, roles, score bounds."
+    acceptance_criteria:
+      - "POST /matches creates a valid match and returns match_id."
+      - "Invalid payloads return 400 with VALIDATION_ERROR and details."
+      - "Match is linked to league and season."
+    files_touched_hint: ["apps/api/app/routes/matches.py", "apps/api/app/validators/*"]
+
+  - id: APP-0014
+    title: "Implement matches read endpoints (list/detail) and void match (admin)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0013]
+    description: "List matches and show detail. Add void endpoint requiring admin/owner."
+    acceptance_criteria:
+      - "List supports pagination and date sort."
+      - "Void marks status=void and stores reason."
+      - "Void creates audit record placeholder (or log) even if audit table not active."
+    files_touched_hint: ["apps/api/app/routes/matches.py", "apps/api/app/services/matches.py"]
+
+  - id: APP-0015
+    title: "Implement deterministic Elo rating update task (worker) and snapshots table writes"
+    type: feature
+    priority: P0
+    depends_on: [APP-0013, APP-0007]
+    description: "Compute Elo for players involved in match; write rating_snapshots; idempotent."
+    acceptance_criteria:
+      - "Enqueue update_ratings_for_match after match creation."
+      - "Running task twice does not duplicate snapshots."
+      - "Elo changes are deterministic and documented."
+    files_touched_hint: ["apps/worker/tasks/ratings.py", "apps/api/app/services/queue.py"]
+
+  - id: APP-0016
+    title: "Implement stats recompute task producing stats_snapshots (leaderboards/synergy/matchups/player cards)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0014, APP-0015]
+    description: "Compute deterministic league stats and store in stats_snapshots with source_hash."
+    acceptance_criteria:
+      - "Stats endpoints can read from stats_snapshots."
+      - "Recompute skips when source_hash unchanged."
+      - "Only valid matches included."
+    files_touched_hint: ["apps/worker/tasks/stats.py", "apps/api/app/models/stats.py"]
+
+  - id: APP-0017
+    title: "Expose stats read endpoints (leaderboards/synergy/matchups/player)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0016]
+    description: "API endpoints return computed stats for league/season."
+    acceptance_criteria:
+      - "Endpoints return stable JSON shapes as specified."
+      - "If stats missing, API triggers recompute and returns 202 with job hint (or returns empty + guidance)."
+    files_touched_hint: ["apps/api/app/routes/stats.py"]
+
+  - id: APP-0018
+    title: "Implement artifact generation task and filesystem layout with manifest checksums"
+    type: feature
+    priority: P0
+    depends_on: [APP-0016]
+    description: "Generate league report files into /data/artifacts/{league_slug}/{season_id}/{run_id}/ and store manifest in DB."
+    acceptance_criteria:
+      - "Artifacts include manifest.json, stats.json, leaderboards.csv, synergy_matrix.csv, matchups.csv, league_digest.md."
+      - "Manifest includes sha256 for each file."
+      - "Artifact status transitions queued->running->done/failed."
+    files_touched_hint: ["apps/worker/tasks/artifacts.py", "apps/api/app/models/artifacts.py"]
+
+  - id: APP-0019
+    title: "Add artifacts API endpoints (create/list/detail/download with membership enforcement)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0018]
+    description: "Create artifact job, list artifacts, get detail, and secure download of specific file from manifest."
+    acceptance_criteria:
+      - "Download only allows files present in manifest."
+      - "Path traversal is impossible (sanitized)."
+      - "Non-members receive 403."
+    files_touched_hint: ["apps/api/app/routes/artifacts.py", "apps/api/app/services/artifacts.py"]
+
+  - id: APP-0020
+    title: "Implement web app skeleton (Next.js App Router) with auth screens"
+    type: feature
+    priority: P0
+    depends_on: [APP-0005, APP-0010]
+    description: "Next.js app boots, has login/register, stores token, and calls /api/health."
+    acceptance_criteria:
+      - "Mobile-first layout with basic navigation shell."
+      - "Login works end-to-end against API."
+    files_touched_hint: ["apps/web/*"]
+
+  - id: APP-0021
+    title: "Web leagues UI (list/create/select league) + default season display"
+    type: feature
+    priority: P0
+    depends_on: [APP-0020, APP-0011]
+    description: "Users can create/select league and land on league dashboard."
+    acceptance_criteria:
+      - "League creation form validates slug and errors."
+      - "Dashboard shows active season."
+    files_touched_hint: ["apps/web/app/leagues/*", "apps/web/app/league/[leagueSlug]/*"]
+
+  - id: APP-0022
+    title: "Web players UI (add/list/view player profile basics)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0021, APP-0012, APP-0017]
+    description: "Players list and basic profile view showing deterministic stats."
+    acceptance_criteria:
+      - "Add guest player and see in list."
+      - "Player profile shows rating and role splits when available."
+    files_touched_hint: ["apps/web/app/league/[leagueSlug]/players/*"]
+
+  - id: APP-0023
+    title: "Web match logging UI (fast log) with validation feedback"
+    type: feature
+    priority: P0
+    depends_on: [APP-0022, APP-0013]
+    description: "Fast logging form for 1v1/2v2; optional gamelles; error feedback from API."
+    acceptance_criteria:
+      - "Default last players/roles (client-side memory) for speed."
+      - "Successful submit shows recap and navigates to match detail."
+    files_touched_hint: ["apps/web/app/league/[leagueSlug]/log/*"]
+
+  - id: APP-0024
+    title: "Web leaderboards UI (tabs for Elo, win rate, role splits, gamelles, streaks)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0021, APP-0017]
+    description: "Leaderboards view with simple tabs and sample size indicators."
+    acceptance_criteria:
+      - "Shows Elo leaderboard and at least 3 additional deterministic boards."
+      - "Displays n_matches for credibility."
+    files_touched_hint: ["apps/web/app/league/[leagueSlug]/leaderboards/*"]
+
+  - id: APP-0025
+    title: "Web matches UI (list + match detail)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0023, APP-0014]
+    description: "View match history and match detail including roles and gamelles."
+    acceptance_criteria:
+      - "List is paginated and sorted by played_at desc."
+      - "Detail shows team composition and events."
+    files_touched_hint: ["apps/web/app/league/[leagueSlug]/matches/*"]
+
+  - id: APP-0026
+    title: "Web artifacts UI (generate, status polling, download links)"
+    type: feature
+    priority: P0
+    depends_on: [APP-0021, APP-0019]
+    description: "Artifacts page to request report generation and download files."
+    acceptance_criteria:
+      - "Generate triggers job and shows queued/running/done/failed."
+      - "Downloads succeed for done artifacts."
+    files_touched_hint: ["apps/web/app/league/[leagueSlug]/artifacts/*"]
+
+  - id: APP-0027
+    title: "Seed data command for demo league with players and matches"
+    type: feature
+    priority: P0
+    depends_on: [APP-0009]
+    description: "Provide an API-managed seed routine to create a demo league with sample data."
+    acceptance_criteria:
+      - "One command creates demo user/league/players/matches."
+      - "Stats and artifacts can be generated from seeded data."
+    files_touched_hint: ["apps/api/app/cli/*", "README.md"]
+
+  - id: APP-0028
+    title: "Add API smoke tests and basic worker task test harness"
+    type: chore
+    priority: P0
+    depends_on: [APP-0019]
+    description: "Minimal tests: /health, auth, create league, add players, create match, generate artifact."
+    acceptance_criteria:
+      - "Tests run in container and pass."
+      - "CI-ready command documented in README."
+    files_touched_hint: ["apps/api/tests/*", "apps/worker/tests/*", "README.md"]
+
+  - id: APP-0029
+    title: "Add tickets/ folder and ticket template aligned with autopilot"
+    type: chore
+    priority: P0
+    depends_on: [APP-0003]
+    description: "Provide ticket template file used by rendered prompts; store prompts per ticket."
+    acceptance_criteria:
+      - "tickets/TEMPLATE.md exists and matches autopilot scripts expectations."
+      - "Rendered ticket includes acceptance criteria and files_touched_hint."
+    files_touched_hint: ["tickets/TEMPLATE.md", "scripts/*"]
+
+  - id: APP-0030
+    title: "Add claude_prompts/feature_prompt.md template"
+    type: chore
+    priority: P0
+    depends_on: [APP-0003]
+    description: "Template for Claude prompts used by render script."
+    acceptance_criteria:
+      - "Template exists and includes required sections (context, constraints, target files, DoD)."
+    files_touched_hint: ["claude_prompts/feature_prompt.md"]
+
+  # ---------------- P1 ----------------
+  - id: APP-0031
+    title: "Implement audit_log table and write audit events for match create/void and artifact generation"
+    type: feature
+    priority: P1
+    depends_on: [APP-0009, APP-0014, APP-0019]
+    description: "Add DB table + logging of key actions for traceability."
+    acceptance_criteria:
+      - "Audit records created for match create, match void, artifact run start/end."
+      - "Audit records include actor, entity id, payload_json."
+    files_touched_hint: ["apps/api/app/models/audit.py", "apps/api/alembic/versions/*"]
+
+  - id: APP-0032
+    title: "Add seasons management UI and API (archive season, create new active season)"
+    type: feature
+    priority: P1
+    depends_on: [APP-0011, APP-0021]
+    description: "Allow season rollover while preserving historical stats."
+    acceptance_criteria:
+      - "Only one active season per league."
+      - "Archived seasons remain queryable."
+    files_touched_hint: ["apps/api/app/routes/seasons.py", "apps/web/app/league/[leagueSlug]/settings/*"]
+
+  - id: APP-0033
+    title: "Export endpoints (CSV): matches and leaderboards"
+    type: feature
+    priority: P1
+    depends_on: [APP-0017]
+    description: "Provide direct CSV exports without artifact generation."
+    acceptance_criteria:
+      - "CSV exports have stable headers and ordering."
+      - "Access controlled to league members."
+    files_touched_hint: ["apps/api/app/routes/exports.py"]
+
+  - id: APP-0034
+    title: "Search and filters for matches (date range, player, mode)"
+    type: feature
+    priority: P1
+    depends_on: [APP-0014, APP-0025]
+    description: "Add server-side filtering and UI controls."
+    acceptance_criteria:
+      - "Filter by player returns only matches involving player."
+      - "Filter by date range and mode works."
+    files_touched_hint: ["apps/api/app/routes/matches.py", "apps/web/app/league/[leagueSlug]/matches/*"]
+
+  - id: APP-0035
+    title: "Governance: role management endpoints and UI (owner/admin/member)"
+    type: feature
+    priority: P1
+    depends_on: [APP-0011, APP-0021]
+    description: "Owners can promote/demote admins and remove members."
+    acceptance_criteria:
+      - "Role changes reflected immediately."
+      - "Only owner can change owner/admin roles."
+    files_touched_hint: ["apps/api/app/routes/members.py", "apps/web/app/league/[leagueSlug]/settings/*"]
+
+  - id: APP-0036
+    title: "Rate limiting and auth hardening (login/register/write endpoints)"
+    type: chore
+    priority: P1
+    depends_on: [APP-0010]
+    description: "Add basic rate limit middleware and improved password policy."
+    acceptance_criteria:
+      - "Excessive login attempts are throttled."
+      - "Password policy enforced and documented."
+    files_touched_hint: ["apps/api/app/middleware/*", "apps/api/app/security/*"]
+
+  - id: APP-0037
+    title: "Artifacts: add regeneration safeguards and 'source_hash unchanged' UX messaging"
+    type: feature
+    priority: P1
+    depends_on: [APP-0019, APP-0026]
+    description: "Avoid generating duplicate reports when data unchanged; inform user."
+    acceptance_criteria:
+      - "If source_hash unchanged, API returns existing artifact_id."
+      - "UI shows 'No changes since last report' message."
+    files_touched_hint: ["apps/api/app/services/artifacts.py", "apps/web/app/league/[leagueSlug]/artifacts/*"]
+
+  - id: APP-0038
+    title: "Observability: add request IDs and structured JSON logging across services"
+    type: chore
+    priority: P1
+    depends_on: [APP-0006, APP-0007]
+    description: "Consistent logs for debugging and operations."
+    acceptance_criteria:
+      - "Each API response includes X-Request-Id."
+      - "Logs include request_id, league_id when available."
+    files_touched_hint: ["apps/api/app/logging/*", "apps/worker/logging/*"]
+
+  - id: APP-0039
+    title: "LLM seam: provider abstraction scaffolding (disabled by default)"
+    type: chore
+    priority: P1
+    depends_on: [APP-0018]
+    description: "Introduce LLM provider interface and config flags without using external LLM."
+    acceptance_criteria:
+      - "LLM_MODE=off keeps deterministic behavior."
+      - "Provider interface exists with mock provider implementation."
+    files_touched_hint: ["apps/api/app/llm/*", "claude_prompts/*"]
+
+  - id: APP-0040
+    title: "Slack integration stub (webhook config + event payload builder)"
+    type: feature
+    priority: P1
+    depends_on: [APP-0031]
+    description: "Optional webhook posting for match logged and weekly digest (no actual external call unless configured)."
+    acceptance_criteria:
+      - "When webhook URL absent, system no-ops."
+      - "Payload builder produces deterministic JSON."
+    files_touched_hint: ["apps/api/app/integrations/slack.py"]
+
+  - id: APP-0041
+    title: "Admin controls for 'shame boards' visibility (gamelles leaderboards toggles)"
+    type: feature
+    priority: P1
+    depends_on: [APP-0017, APP-0035]
+    description: "League setting to hide/show gamelles boards."
+    acceptance_criteria:
+      - "Setting stored per league."
+      - "Leaderboards endpoint respects setting."
+    files_touched_hint: ["apps/api/app/models/leagues.py", "apps/web/app/league/[leagueSlug]/leaderboards/*"]
+
+  - id: APP-0042
+    title: "Add basic caching for stats endpoints (ETag/source_hash)"
+    type: chore
+    priority: P1
+    depends_on: [APP-0017]
+    description: "Use source_hash to return 304 when unchanged."
+    acceptance_criteria:
+      - "Stats endpoints return ETag=source_hash."
+      - "If If-None-Match matches, return 304."
+    files_touched_hint: ["apps/api/app/routes/stats.py"]
+
+  - id: APP-0043
+    title: "Improve deterministic narrative templates for league_digest.md"
+    type: feature
+    priority: P1
+    depends_on: [APP-0018]
+    description: "Richer but still deterministic summaries (top mover, rivalry of week, best duo)."
+    acceptance_criteria:
+      - "Digest content is stable and purely computed."
+      - "Digest includes sample size notes."
+    files_touched_hint: ["apps/worker/templates/*", "apps/worker/tasks/artifacts.py"]
+
+  - id: APP-0044
+    title: "Add OpenAPI tagging, examples, and API docs polish"
+    type: chore
+    priority: P1
+    depends_on: [APP-0019]
+    description: "Make API self-documenting for future integrations."
+    acceptance_criteria:
+      - "Endpoints have tags and example payloads."
+      - "Auth requirements documented per route."
+    files_touched_hint: ["apps/api/app/routes/*"]
+
+  # ---------------- P2 ----------------
+  - id: APP-0045
+    title: "QR code quick log (generate league QR linking to log screen with league preselected)"
+    type: feature
+    priority: P2
+    depends_on: [APP-0023]
+    description: "Generate QR for league that opens /league/{slug}/log."
+    acceptance_criteria:
+      - "QR displayed in league settings."
+      - "Scan opens correct route."
+    files_touched_hint: ["apps/web/*", "apps/api/*"]
+
+  - id: APP-0046
+    title: "Tournament brackets (single-elim) data model + minimal UI"
+    type: feature
+    priority: P2
+    depends_on: [APP-0032]
+    description: "Add tournaments and bracket progression."
+    acceptance_criteria:
+      - "Create tournament, generate bracket from player list."
+      - "Record results and advance."
+    files_touched_hint: ["apps/api/app/models/tournaments.py", "apps/web/app/league/[leagueSlug]/tournaments/*"]
+
+  - id: APP-0047
+    title: "Realtime leaderboard updates (WebSocket or SSE)"
+    type: feature
+    priority: P2
+    depends_on: [APP-0024]
+    description: "Push updates after match logged."
+    acceptance_criteria:
+      - "Leaderboards update without full refresh."
+    files_touched_hint: ["apps/api/app/realtime/*", "apps/web/*"]
+
+  - id: APP-0048
+    title: "PWA support for offline-first match logging queue"
+    type: feature
+    priority: P2
+    depends_on: [APP-0023]
+    description: "Allow logging offline and syncing later."
+    acceptance_criteria:
+      - "Offline logs are queued and submitted when online."
+      - "Conflicts handled with clear UX."
+    files_touched_hint: ["apps/web/*"]
+
+  - id: APP-0049
+    title: "LLM optional narratives for weekly digest (provider-enabled)"
+    type: feature
+    priority: P2
+    depends_on: [APP-0039]
+    description: "Enable LLM to produce richer prose summaries with full traceability and opt-in."
+    acceptance_criteria:
+      - "LLM_MODE=optional triggers LLM generation only when configured."
+      - "Store prompt hash + provider metadata in artifact manifest."
+    files_touched_hint: ["apps/api/app/llm/*", "apps/worker/tasks/artifacts.py"]
+
+  - id: APP-0050
+    title: "SSO (Google Workspace) auth option"
+    type: feature
+    priority: P2
+    depends_on: [APP-0036]
+    description: "Add OAuth2 login for enterprises."
+    acceptance_criteria:
+      - "Users can login via Google when configured."
+      - "RBAC unchanged."
+    files_touched_hint: ["apps/api/app/routes/auth.py", "apps/web/app/auth/*"]
+
+  - id: APP-0051
+    title: "Advanced analytics: 'carry index' and 'choke index' boards"
+    type: feature
+    priority: P2
+    depends_on: [APP-0016]
+    description: "Compute additional fun boards with confidence indicators."
+    acceptance_criteria:
+      - "Boards are deterministic and documented."
+      - "Boards include minimum sample size thresholds."
+    files_touched_hint: ["apps/worker/tasks/stats.py", "apps/api/app/routes/stats.py"]
+
+  - id: APP-0052
+    title: "Artifact storage abstraction (local volume vs S3)"
+    type: chore
+    priority: P2
+    depends_on: [APP-0019]
+    description: "Introduce storage interface to support S3 later."
+    acceptance_criteria:
+      - "Local volume remains default."
+      - "S3 implementation can be enabled via env vars."
+    files_touched_hint: ["apps/api/app/storage/*", "apps/worker/*"]
+
+  - id: APP-0053
+    title: "Abuse controls: soft moderation tools and league code-of-conduct"
+    type: feature
+    priority: P2
+    depends_on: [APP-0035]
+    description: "Add optional hiding of certain boards and league policy text."
+    acceptance_criteria:
+      - "League can disable specific boards."
+      - "Policy displayed in settings."
+    files_touched_hint: ["apps/api/app/models/leagues.py", "apps/web/app/league/[leagueSlug]/settings/*"]
+
+  - id: APP-0054
+    title: "Backups and restore guide for Postgres + artifacts volume"
+    type: chore
+    priority: P2
+    depends_on: [APP-0005]
+    description: "Provide operational docs."
+    acceptance_criteria:
+      - "README includes backup/restore steps."
+      - "Artifacts volume path documented."
+    files_touched_hint: ["README.md"]

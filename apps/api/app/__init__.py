@@ -1,0 +1,1 @@
+"""FoosPulse API application."""

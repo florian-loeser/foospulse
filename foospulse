@@ -1,0 +1,75 @@
+#!/bin/bash
+# FoosPulse CLI - Autopilot control interface
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="$SCRIPT_DIR/scripts"
+
+usage() {
+    echo "FoosPulse CLI"
+    echo ""
+    echo "Usage: ./foospulse <command> [args]"
+    echo ""
+    echo "Commands:"
+    echo "  status          Show backlog status"
+    echo "  run-next        Select and render next backlog item"
+    echo "  mark-done [ID]  Mark item as done (uses current if no ID)"
+    echo "  feature <ID>    Start working on specific feature"
+    echo "  retry           Retry current in-progress item"
+    echo ""
+    echo "Examples:"
+    echo "  ./foospulse status"
+    echo "  ./foospulse run-next"
+    echo "  ./foospulse feature APP-0010"
+    echo "  ./foospulse mark-done"
+}
+
+case "${1:-}" in
+    status)
+        python3 "$SCRIPTS_DIR/status.py"
+        ;;
+    run-next)
+        bash "$SCRIPTS_DIR/run-next.sh"
+        ;;
+    mark-done)
+        python3 "$SCRIPTS_DIR/mark-done.py" "${2:-}"
+        ;;
+    feature)
+        if [ -z "${2:-}" ]; then
+            echo "Error: feature command requires an ID"
+            echo "Usage: ./foospulse feature <ID>"
+            exit 1
+        fi
+        python3 "$SCRIPTS_DIR/render-prompt.py" "$2"
+        ;;
+    retry)
+        # Get current in-progress item and re-render its prompt
+        CURRENT=$(python3 -c "
+import json
+with open('$SCRIPT_DIR/BACKLOG_STATE.json') as f:
+    state = json.load(f)
+    ip = state.get('in_progress', [])
+    if ip:
+        print(ip[0])
+    else:
+        exit(1)
+" 2>/dev/null) || {
+            echo "No item currently in progress"
+            exit 1
+        }
+        echo "Retrying: $CURRENT"
+        python3 "$SCRIPTS_DIR/render-prompt.py" "$CURRENT"
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        if [ -n "${1:-}" ]; then
+            echo "Unknown command: $1"
+            echo ""
+        fi
+        usage
+        exit 1
+        ;;
+esac

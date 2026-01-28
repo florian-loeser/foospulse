@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "${WEB_PORT:-3100}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:${API_PORT:-8100}
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT:-8100}:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://foospulse:foospulse@postgres:5432/foospulse}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production-32chars}
+      - ARTIFACTS_DIR=/data/artifacts
+      - LLM_MODE=${LLM_MODE:-off}
+      - API_DEBUG=${API_DEBUG:-true}
+      - API_CORS_ORIGINS=${API_CORS_ORIGINS:-http://localhost:3100}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - ./data/artifacts:/data/artifacts
+
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://foospulse:foospulse@postgres:5432/foospulse}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - ARTIFACTS_DIR=/data/artifacts
+      - LLM_MODE=${LLM_MODE:-off}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/worker:/app
+      - ./data/artifacts:/data/artifacts
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-5450}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-foospulse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-foospulse}
+      - POSTGRES_DB=${POSTGRES_DB:-foospulse}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-foospulse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6390}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
