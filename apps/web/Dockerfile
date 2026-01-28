@@ -4,11 +4,17 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 # Copy application code
 COPY . .
 
+# Build the application
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+RUN npm run build
+
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+# Use PORT env var from Railway, default to 3000
+CMD ["sh", "-c", "npm start -- -p ${PORT:-3000}"]
