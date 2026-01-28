@@ -188,6 +188,14 @@ class ApiClient {
     )
   }
 
+  async voidMatch(leagueSlug: string, matchId: string, reason: string) {
+    return this.request<{ match_id: string; status: string; void_reason: string }>(
+      'POST',
+      `/api/leagues/${leagueSlug}/matches/${matchId}/void`,
+      { reason }
+    )
+  }
+
   // Stats
   async getLeaderboards(leagueSlug: string, seasonId?: string) {
     const params = seasonId ? `?season_id=${seasonId}` : ''
@@ -290,6 +298,35 @@ class ApiClient {
     )
   }
 
+  // Invites
+  async getInviteCode(leagueSlug: string) {
+    return this.request<{ invite_code: string; league_name: string }>(
+      'GET',
+      `/api/leagues/${leagueSlug}/invite`
+    )
+  }
+
+  async regenerateInviteCode(leagueSlug: string) {
+    return this.request<{ invite_code: string; league_name: string }>(
+      'POST',
+      `/api/leagues/${leagueSlug}/invite/regenerate`
+    )
+  }
+
+  async getLeagueByInvite(inviteCode: string) {
+    return this.request<{ league: { id: string; name: string; slug: string }; already_member: boolean }>(
+      'GET',
+      `/api/leagues/join/${inviteCode}`
+    )
+  }
+
+  async joinLeague(inviteCode: string) {
+    return this.request<{ joined: boolean; league: { id: string; name: string; slug: string } }>(
+      'POST',
+      `/api/leagues/join/${inviteCode}`
+    )
+  }
+
   // Health
   async health() {
     return this.request<{ status: string; dependencies: unknown }>('GET', '/api/health')
@@ -358,6 +395,7 @@ class ApiClient {
         metadata?: unknown
         recorded_at: string
         undone: boolean
+        elapsed_seconds?: number
       }>
       started_at?: string
     }>('GET', `/api/live/${shareToken}`)

@@ -117,6 +117,11 @@ def compute_leaderboards(db, league_id, season_id, matches, mp_by_match, player_
             player_stats[event.against_player_id]["gamelles_received"] += event.count
             if event.by_player_id:
                 player_stats[event.by_player_id]["gamelles_delivered"] += event.count
+        elif event.event_type == EventType.LOB:
+            # Lobs count as 3x gamelles
+            player_stats[event.against_player_id]["gamelles_received"] += event.count * 3
+            if event.by_player_id:
+                player_stats[event.by_player_id]["gamelles_delivered"] += event.count * 3
     
     for player_id, results in recent_results.items():
         if results:

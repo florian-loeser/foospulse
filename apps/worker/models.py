@@ -56,6 +56,7 @@ class Position(str, enum.Enum):
 
 class EventType(str, enum.Enum):
     GAMELLE = "gamelle"
+    LOB = "lob"
 
 
 class ArtifactStatus(str, enum.Enum):
@@ -93,7 +94,7 @@ class Season(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     league_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("leagues.id"))
     name: Mapped[str] = mapped_column(String(100))
-    status: Mapped[SeasonStatus] = mapped_column(Enum(SeasonStatus))
+    status: Mapped[SeasonStatus] = mapped_column(Enum(SeasonStatus, values_callable=lambda e: [m.value for m in e]))
 
 
 class Player(Base):
@@ -166,7 +167,7 @@ class Artifact(Base):
     season_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     generator: Mapped[str] = mapped_column(String(50))
     artifact_set_name: Mapped[str] = mapped_column(String(50))
-    status: Mapped[ArtifactStatus] = mapped_column(Enum(ArtifactStatus))
+    status: Mapped[ArtifactStatus] = mapped_column(Enum(ArtifactStatus, values_callable=lambda e: [m.value for m in e]))
     run_id: Mapped[str] = mapped_column(String(50))
     output_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     manifest_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)

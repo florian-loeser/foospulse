@@ -1,5 +1,6 @@
 """League member management routes."""
 import uuid
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -13,6 +14,11 @@ from app.models.player import Player
 from app.security import get_current_user
 
 router = APIRouter()
+
+
+def generate_invite_code() -> str:
+    """Generate a random 8-character invite code."""
+    return secrets.token_urlsafe(6)
 
 
 def api_response(data=None, error=None):
@@ -222,3 +228,69 @@ async def remove_member(
     target_member.status = MemberStatus.REMOVED
 
     return api_response(data={"removed": True, "member_id": str(target_member.id)})
+
+
+@router.get("/{league_slug}/invite")
+async def get_invite_code(
+    league_slug: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the league's invite code. Only admins and owners can access."""
+    result = await db.execute(select(League).where(League.slug == league_slug))
+    league = result.scalar_one_or_none()
+
+    if not league:
+        raise HTTPException(
+            status_code=404,
+            detail=api_response(error=api_error("NOT_FOUND", "League not found"))
+        )
+
+    # Check membership and role
+    result = await db.execute(
+        select(LeagueMember)
+        .where(LeagueMember.league_id == league.id)
+        .where(LeagueMember.user_id == current_user.id)
+        .where(LeagueMember.status == MemberStatus.ACTIVE)
+    )
+    member = result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail=api_response(error=api_error("FORBIDDEN", "Not a member"))
+        )
+
+    if member.role not in (MemberRole.OWNER, MemberRole.ADMIN):
+        raise HTTPException(
+            status_code=403,
+            detail=api_response(error=api_error("FORBIDDEN", "Admin role required"))
+        )
+
+    # Generate invite code if it doesn't exist
+    if not league.invite_code:
+        league.invite_code = generate_invite_code()
+        await db.commit()
+
+    return api_response(data={
+        "invite_code": league.invite_code,
+        "league_name": league.name
+    })
+
+
+@router.post("/{league_slug}/invite/regenerate")
+async def regenerate_invite_code(
+    league_slug: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Regenerate the league's invite code. Only owner can do this."""
+    league, _ = await get_league_and_check_owner(league_slug, current_user, db)
+
+    league.invite_code = generate_invite_code()
+    await db.commit()
+
+    return api_response(data={
+        "invite_code": league.invite_code,
+        "league_name": league.name
+    })

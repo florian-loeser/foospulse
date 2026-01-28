@@ -39,6 +39,7 @@ services:
     volumes:
       - ./apps/api:/app
       - ./data/artifacts:/data/artifacts
+    restart: unless-stopped
 
   worker:
     build:
@@ -59,6 +60,7 @@ services:
     volumes:
       - ./apps/worker:/app
       - ./data/artifacts:/data/artifacts
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
@@ -75,6 +77,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "archive_mode=off"
 
   redis:
     image: redis:7-alpine
@@ -87,6 +100,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec
 
 volumes:
   postgres_data:

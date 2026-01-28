@@ -35,6 +35,7 @@ class Position(str, enum.Enum):
 
 class EventType(str, enum.Enum):
     GAMELLE = "gamelle"
+    LOB = "lob"  # Counts as 3x gamelle
 
 
 class Match(Base):

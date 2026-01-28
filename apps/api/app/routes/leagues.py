@@ -293,3 +293,113 @@ async def update_league_settings(
     league.settings = current_settings
 
     return api_response(data={"settings": current_settings})
+
+
+@router.get("/join/{invite_code}")
+async def get_league_by_invite(
+    invite_code: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get league info by invite code (for preview before joining)."""
+    result = await db.execute(select(League).where(League.invite_code == invite_code))
+    league = result.scalar_one_or_none()
+
+    if not league:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=api_response(error=api_error("NOT_FOUND", "Invalid invite code"))
+        )
+
+    # Check if already a member
+    result = await db.execute(
+        select(LeagueMember)
+        .where(LeagueMember.league_id == league.id)
+        .where(LeagueMember.user_id == current_user.id)
+        .where(LeagueMember.status == MemberStatus.ACTIVE)
+    )
+    existing_member = result.scalar_one_or_none()
+
+    return api_response(data={
+        "league": {
+            "id": str(league.id),
+            "name": league.name,
+            "slug": league.slug
+        },
+        "already_member": existing_member is not None
+    })
+
+
+@router.post("/join/{invite_code}")
+async def join_league(
+    invite_code: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Join a league using an invite code."""
+    result = await db.execute(select(League).where(League.invite_code == invite_code))
+    league = result.scalar_one_or_none()
+
+    if not league:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=api_response(error=api_error("NOT_FOUND", "Invalid invite code"))
+        )
+
+    # Check if already a member
+    result = await db.execute(
+        select(LeagueMember)
+        .where(LeagueMember.league_id == league.id)
+        .where(LeagueMember.user_id == current_user.id)
+    )
+    existing_member = result.scalar_one_or_none()
+
+    if existing_member:
+        if existing_member.status == MemberStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=api_response(error=api_error("CONFLICT", "Already a member of this league"))
+            )
+        elif existing_member.status == MemberStatus.REMOVED:
+            # Re-activate removed member
+            existing_member.status = MemberStatus.ACTIVE
+            existing_member.role = MemberRole.MEMBER
+            await db.commit()
+            return api_response(data={
+                "joined": True,
+                "league": {
+                    "id": str(league.id),
+                    "name": league.name,
+                    "slug": league.slug
+                }
+            })
+
+    # Create player for the new member
+    player = Player(
+        league_id=league.id,
+        user_id=current_user.id,
+        nickname=current_user.display_name,
+        is_guest=False
+    )
+    db.add(player)
+    await db.flush()
+
+    # Create membership
+    member = LeagueMember(
+        league_id=league.id,
+        user_id=current_user.id,
+        player_id=player.id,
+        role=MemberRole.MEMBER,
+        status=MemberStatus.ACTIVE
+    )
+    db.add(member)
+    await db.commit()
+
+    return api_response(data={
+        "joined": True,
+        "league": {
+            "id": str(league.id),
+            "name": league.name,
+            "slug": league.slug
+        }
+    })

@@ -1,4 +1,5 @@
 """Seed demo data for testing."""
+import os
 import random
 from datetime import date, datetime, timedelta
 
@@ -14,8 +15,20 @@ from app.models.match import Match, MatchPlayer, MatchEvent, MatchMode, MatchSta
 from app.security import get_password_hash
 
 
-async def seed_demo():
-    """Create demo league with players and matches."""
+async def seed_demo(force: bool = False):
+    """Create demo league with players and matches.
+
+    WARNING: This creates a demo user with a weak password.
+    Do not run in production unless you understand the risks.
+    """
+    # Production safety check
+    api_debug = os.environ.get("API_DEBUG", "true").lower()
+    if api_debug == "false" and not force:
+        print("ERROR: Cannot seed demo data in production mode (API_DEBUG=false)")
+        print("This would create a demo user with a weak password.")
+        print("If you really need demo data, set API_DEBUG=true or pass --force")
+        return
+
     print("Seeding demo data...")
     
     async with async_session_maker() as db:

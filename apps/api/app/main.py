@@ -17,11 +17,34 @@ configure_logging(json_logs=settings.json_logs, log_level=settings.log_level)
 logger = get_logger("api")
 
 
+def _validate_production_config():
+    """Validate configuration on startup."""
+    warnings = []
+
+    # Check JWT secret
+    if settings.jwt_secret == "dev-secret-change-in-production-32chars":
+        warnings.append("JWT_SECRET is using default value - MUST be changed for production")
+
+    # Check debug mode in production
+    if not settings.api_debug:
+        # We're in production mode, do stricter checks
+        if settings.jwt_secret == "dev-secret-change-in-production-32chars":
+            logger.error("SECURITY: Using default JWT secret in production mode!")
+
+    return warnings
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     logger.info("api_starting", version="1.0.0")
+
+    # Validate configuration
+    config_warnings = _validate_production_config()
+    for warning in config_warnings:
+        logger.warning("config_warning", message=warning)
+
     yield
     # Shutdown
     logger.info("api_shutting_down")

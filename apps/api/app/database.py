@@ -10,16 +10,23 @@ from app.config import settings
 
 
 # Convert database URL to async format
+# Railway uses postgres:// but SQLAlchemy 2.0 needs postgresql+asyncpg://
 database_url = settings.database_url
-if database_url.startswith("postgresql://"):
-    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+elif database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 elif database_url.startswith("postgresql+psycopg://"):
-    database_url = database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+    database_url = database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://", 1)
 
 engine = create_async_engine(
     database_url,
     echo=settings.api_debug,
-    pool_pre_ping=True,
+    pool_pre_ping=True,  # Verify connections before use
+    pool_size=10,  # Number of connections to keep open
+    max_overflow=20,  # Additional connections when pool is exhausted
+    pool_timeout=30,  # Seconds to wait for available connection
+    pool_recycle=1800,  # Recycle connections after 30 minutes
 )
 
 async_session_maker = async_sessionmaker(

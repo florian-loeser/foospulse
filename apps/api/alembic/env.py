@@ -13,7 +13,8 @@ from app.database import Base
 from app.models import (
     User, League, LeagueMember, Season, Player,
     Match, MatchPlayer, MatchEvent,
-    RatingSnapshot, StatsSnapshot, Artifact
+    RatingSnapshot, StatsSnapshot, Artifact,
+    AuditLog, LiveMatchSession, LiveMatchSessionPlayer, LiveMatchSessionEvent
 )
 from app.config import settings
 
@@ -28,11 +29,14 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Get database URL from settings
+# Railway uses postgres:// but SQLAlchemy 2.0 needs postgresql+asyncpg://
 database_url = settings.database_url
-if database_url.startswith("postgresql://"):
-    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+elif database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 elif database_url.startswith("postgresql+psycopg://"):
-    database_url = database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+    database_url = database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://", 1)
 
 
 def run_migrations_offline() -> None:

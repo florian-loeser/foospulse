@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import {
@@ -35,6 +35,7 @@ function formatTime(seconds: number): string {
 
 export default function MatchDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const leagueSlug = params.leagueSlug as string
   const matchId = params.matchId as string
   const [match, setMatch] = useState<any>(null)
@@ -42,6 +43,9 @@ export default function MatchDetailPage() {
   const [hasLiveData, setHasLiveData] = useState(false)
   const [duration, setDuration] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showVoidModal, setShowVoidModal] = useState(false)
+  const [voidReason, setVoidReason] = useState('')
+  const [voiding, setVoiding] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -163,18 +167,64 @@ export default function MatchDetailPage() {
     return intervals
   }, [liveEvents, duration])
 
-  if (loading) return <div className="min-h-screen p-4 text-center py-12">Loading...</div>
-  if (!match) return <div className="min-h-screen p-4 text-center py-12">Match not found</div>
+  const handleVoidMatch = async () => {
+    if (!voidReason.trim()) return
+    setVoiding(true)
+    const result = await api.voidMatch(leagueSlug, matchId, voidReason)
+    setVoiding(false)
+    if (result.data) {
+      setMatch({ ...match, status: 'void', void_reason: voidReason })
+      setShowVoidModal(false)
+      setVoidReason('')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Loading match...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!match) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-400 mb-4">
+          <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">Match not found</p>
+        <Link href={`/league/${leagueSlug}/matches`} className="text-primary-600 dark:text-primary-400 hover:underline">
+          Back to matches
+        </Link>
+      </div>
+    )
+  }
 
   const teamBlue = match.players.filter((p: any) => p.team === 'A')
   const teamRed = match.players.filter((p: any) => p.team === 'B')
   const winner = match.team_a_score > match.team_b_score ? 'blue' : match.team_a_score < match.team_b_score ? 'red' : 'draw'
 
   return (
-    <main className="min-h-screen p-4 pb-24">
-      <div className="max-w-2xl mx-auto">
-        <Link href={`/league/${leagueSlug}/matches`} className="text-sm text-gray-500">&larr; Back</Link>
-        <h1 className="text-2xl font-bold mt-2 mb-6">Match Details</h1>
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-8 text-black dark:text-white">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 sticky top-0 z-10 px-4 py-3 shadow-sm">
+        <div className="max-w-2xl mx-auto flex items-center gap-3">
+          <Link href={`/league/${leagueSlug}/matches`} className="text-gray-500 dark:text-gray-400 p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-lg font-bold text-black dark:text-white">Match Details</h1>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto p-4">
 
         {match.status === 'void' && (
           <div className="bg-red-50 text-red-700 p-3 rounded-lg mb-4">
@@ -362,22 +412,73 @@ export default function MatchDetailPage() {
 
         {/* Match Info */}
         <div className="card">
-          <p className="text-sm text-gray-500">Played {new Date(match.played_at).toLocaleString()}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Played {new Date(match.played_at).toLocaleString()}</p>
           {!hasLiveData && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
               No detailed event data available for this match.
             </p>
           )}
           {match.events?.length > 0 && (
-            <div className="mt-3 pt-3 border-t">
-              <p className="font-medium mb-2">Gamellized</p>
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <p className="font-medium mb-2 text-black dark:text-white">Gamellized</p>
               {match.events.map((e: any, i: number) => (
-                <p key={i} className="text-sm">🥅 {e.count}x gamellized</p>
+                <p key={i} className="text-sm text-black dark:text-white">{e.count}x gamellized</p>
               ))}
             </div>
           )}
         </div>
+
+        {/* Void Match Button */}
+        {match.status !== 'void' && (
+          <div className="mt-6">
+            <button
+              onClick={() => setShowVoidModal(true)}
+              className="w-full py-3 px-4 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+            >
+              Void This Match
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Void Confirmation Modal */}
+      {showVoidModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4 text-black dark:text-white">Void Match</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Voiding this match will remove it from leaderboard calculations. This action cannot be undone.
+            </p>
+            <label className="block text-sm font-medium mb-2 text-black dark:text-white">Reason for voiding</label>
+            <textarea
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder="e.g., Wrong players selected, test match, etc."
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg mb-4 resize-none bg-white dark:bg-gray-700 text-black dark:text-white"
+              rows={3}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowVoidModal(false)
+                  setVoidReason('')
+                }}
+                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-black dark:text-white"
+                disabled={voiding}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVoidMatch}
+                disabled={!voidReason.trim() || voiding}
+                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {voiding ? 'Voiding...' : 'Void Match'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

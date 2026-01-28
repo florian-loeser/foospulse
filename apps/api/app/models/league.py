@@ -37,11 +37,17 @@ class MemberStatus(str, enum.Enum):
     REMOVED = "removed"
 
 
+def generate_invite_code() -> str:
+    """Generate a random 8-character invite code."""
+    import secrets
+    return secrets.token_urlsafe(6)  # 8 characters
+
+
 class League(Base):
     """A foosball league."""
-    
+
     __tablename__ = "leagues"
-    
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -49,6 +55,13 @@ class League(Base):
     )
     name: Mapped[str] = mapped_column(String(100))
     slug: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    invite_code: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        unique=True,
+        index=True,
+        nullable=True,
+        default=generate_invite_code
+    )
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Paris")
     visibility: Mapped[LeagueVisibility] = mapped_column(
         Enum(LeagueVisibility, values_callable=lambda e: [m.value for m in e]),

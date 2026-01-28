@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { vibrateLight } from '@/lib/haptics'
 
 interface Player {
   id: string
@@ -160,59 +161,70 @@ export default function LiveMatchSetup() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Loading players...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <main className="min-h-screen pb-6">
+    <main className="min-h-screen pb-24 bg-gray-50 dark:bg-gray-900 text-black dark:text-white">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 sticky top-0 z-10 px-4 py-3 shadow-sm">
         <div className="flex items-center gap-3">
-          <Link href={`/league/${leagueSlug}`} className="text-gray-500 p-1">
+          <Link href={`/league/${leagueSlug}`} className="text-gray-600 dark:text-gray-400 p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-lg font-bold">New Live Match</h1>
+          <div>
+            <h1 className="text-lg font-bold text-black dark:text-white">New Live Match</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Select players to start</p>
+          </div>
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>
+          <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">{error}</div>
         )}
 
         {seasons.length === 0 && (
-          <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm">
+          <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 p-3 rounded-lg text-sm">
             No seasons available. Create a season first to start a live match.
           </div>
         )}
 
         {/* Mode Selection */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => handleModeChange('1v1')}
-            className={`py-4 rounded-xl font-semibold text-lg ${
-              mode === '1v1'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            1v1
-          </button>
-          <button
-            onClick={() => handleModeChange('2v2')}
-            className={`py-4 rounded-xl font-semibold text-lg ${
-              mode === '2v2'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            2v2
-          </button>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Match Mode</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => { handleModeChange('1v1'); vibrateLight(); }}
+              className={`py-4 rounded-xl font-semibold text-lg transition-all press-effect ${
+                mode === '1v1'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              <span className="text-2xl mb-1 block">👤</span>
+              1v1
+            </button>
+            <button
+              onClick={() => { handleModeChange('2v2'); vibrateLight(); }}
+              className={`py-4 rounded-xl font-semibold text-lg transition-all press-effect ${
+                mode === '2v2'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              <span className="text-2xl mb-1 block">👥</span>
+              2v2
+            </button>
+          </div>
         </div>
 
         {/* Season (auto-selected, show only if multiple) */}
@@ -220,7 +232,7 @@ export default function LiveMatchSetup() {
           <select
             value={selectedSeason}
             onChange={(e) => setSelectedSeason(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-base"
+            className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-base bg-white dark:bg-gray-800 text-black dark:text-white"
           >
             {seasons.map((season) => (
               <option key={season.id} value={season.id}>
@@ -231,95 +243,141 @@ export default function LiveMatchSetup() {
         )}
 
         {/* Team Blue */}
-        <div className="bg-blue-50 rounded-xl p-4">
-          <h3 className="font-bold text-blue-700 mb-3">Blue Team</h3>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/20 rounded-xl p-4 shadow-sm border border-blue-100 dark:border-blue-800/50">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <h3 className="font-bold text-blue-700 dark:text-blue-400">Blue Team</h3>
+          </div>
           <div className="space-y-3">
-            <select
-              value={teamAAttack}
-              onChange={(e) => setTeamAAttack(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl text-base bg-white"
-            >
-              <option value="">{mode === '1v1' ? 'Select player...' : 'Attacker...'}</option>
-              {getAvailablePlayers(teamAAttack).map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.nickname}
-                </option>
-              ))}
-            </select>
-            {mode === '2v2' && (
+            <div>
+              {mode === '2v2' && <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 font-medium">Attacker</p>}
               <select
-                value={teamADefense}
-                onChange={(e) => setTeamADefense(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl text-base bg-white"
+                value={teamAAttack}
+                onChange={(e) => { setTeamAAttack(e.target.value); vibrateLight(); }}
+                className="w-full px-4 py-3 border-2 border-blue-200 dark:border-blue-700 rounded-xl text-base bg-white dark:bg-gray-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               >
-                <option value="">Defender...</option>
-                {getAvailablePlayers(teamADefense).map((player) => (
+                <option value="">{mode === '1v1' ? 'Select player...' : 'Select attacker...'}</option>
+                {getAvailablePlayers(teamAAttack).map((player) => (
                   <option key={player.id} value={player.id}>
                     {player.nickname}
                   </option>
                 ))}
               </select>
+            </div>
+            {mode === '2v2' && (
+              <div>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 font-medium">Defender</p>
+                <select
+                  value={teamADefense}
+                  onChange={(e) => { setTeamADefense(e.target.value); vibrateLight(); }}
+                  className="w-full px-4 py-3 border-2 border-blue-200 dark:border-blue-700 rounded-xl text-base bg-white dark:bg-gray-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                >
+                  <option value="">Select defender...</option>
+                  {getAvailablePlayers(teamADefense).map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.nickname}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
         </div>
 
+        {/* VS Divider */}
+        <div className="flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            <span className="text-gray-500 dark:text-gray-400 font-bold text-sm">VS</span>
+          </div>
+        </div>
+
         {/* Team Red */}
-        <div className="bg-red-50 rounded-xl p-4">
-          <h3 className="font-bold text-red-700 mb-3">Red Team</h3>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-900/20 rounded-xl p-4 shadow-sm border border-red-100 dark:border-red-800/50">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <h3 className="font-bold text-red-700 dark:text-red-400">Red Team</h3>
+          </div>
           <div className="space-y-3">
-            <select
-              value={teamBAttack}
-              onChange={(e) => setTeamBAttack(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-red-200 rounded-xl text-base bg-white"
-            >
-              <option value="">{mode === '1v1' ? 'Select player...' : 'Attacker...'}</option>
-              {getAvailablePlayers(teamBAttack).map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.nickname}
-                </option>
-              ))}
-            </select>
-            {mode === '2v2' && (
+            <div>
+              {mode === '2v2' && <p className="text-xs text-red-600 dark:text-red-400 mb-1 font-medium">Attacker</p>}
               <select
-                value={teamBDefense}
-                onChange={(e) => setTeamBDefense(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-red-200 rounded-xl text-base bg-white"
+                value={teamBAttack}
+                onChange={(e) => { setTeamBAttack(e.target.value); vibrateLight(); }}
+                className="w-full px-4 py-3 border-2 border-red-200 dark:border-red-700 rounded-xl text-base bg-white dark:bg-gray-800 text-black dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
               >
-                <option value="">Defender...</option>
-                {getAvailablePlayers(teamBDefense).map((player) => (
+                <option value="">{mode === '1v1' ? 'Select player...' : 'Select attacker...'}</option>
+                {getAvailablePlayers(teamBAttack).map((player) => (
                   <option key={player.id} value={player.id}>
                     {player.nickname}
                   </option>
                 ))}
               </select>
+            </div>
+            {mode === '2v2' && (
+              <div>
+                <p className="text-xs text-red-600 dark:text-red-400 mb-1 font-medium">Defender</p>
+                <select
+                  value={teamBDefense}
+                  onChange={(e) => { setTeamBDefense(e.target.value); vibrateLight(); }}
+                  className="w-full px-4 py-3 border-2 border-red-200 dark:border-red-700 rounded-xl text-base bg-white dark:bg-gray-800 text-black dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                >
+                  <option value="">Select defender...</option>
+                  {getAvailablePlayers(teamBDefense).map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.nickname}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
         </div>
 
         {/* Scorer Secret Toggle */}
-        <label className="flex items-center gap-3 px-1">
-          <input
-            type="checkbox"
-            checked={generateScorerSecret}
-            onChange={(e) => setGenerateScorerSecret(e.target.checked)}
-            className="w-5 h-5 rounded"
-          />
-          <span className="text-sm text-gray-600">Allow sharing scorer link</span>
-        </label>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={generateScorerSecret}
+              onChange={(e) => { setGenerateScorerSecret(e.target.checked); vibrateLight(); }}
+              className="w-5 h-5 rounded text-primary-600 focus:ring-primary-500"
+            />
+            <div>
+              <span className="text-sm font-medium text-black dark:text-white">Allow sharing scorer link</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Others can record events with a special link</p>
+            </div>
+          </label>
+        </div>
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 safe-area-inset-bottom">
         <button
           onClick={handleCreate}
           disabled={!isValid() || creating}
-          className={`w-full py-4 rounded-xl font-bold text-lg ${
+          className={`w-full py-4 rounded-xl font-bold text-lg transition-all press-effect flex items-center justify-center gap-2 ${
             isValid() && !creating
-              ? 'bg-green-600 text-white active:bg-green-700'
-              : 'bg-gray-200 text-gray-400'
+              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30 active:from-green-600 active:to-green-700'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
           }`}
         >
-          {creating ? 'Starting...' : 'Start Match'}
+          {creating ? (
+            <>
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Starting...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Start Match
+            </>
+          )}
         </button>
       </div>
     </main>
