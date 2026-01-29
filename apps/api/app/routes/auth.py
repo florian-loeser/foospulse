@@ -100,10 +100,16 @@ async def login(
             )
         )
 
-    # Create token
+    # Create token with different expiration based on remember_me
+    # Remember me: 30 days, otherwise: 24 hours
+    if credentials.remember_me:
+        expires_delta = timedelta(days=30)
+    else:
+        expires_delta = timedelta(hours=24)
+
     access_token = create_access_token(
         data={"sub": str(user.id)},
-        expires_delta=timedelta(minutes=settings.jwt_expire_minutes)
+        expires_delta=expires_delta
     )
 
     return api_response(data={

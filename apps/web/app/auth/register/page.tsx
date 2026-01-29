@@ -27,8 +27,8 @@ function RegisterForm() {
       return
     }
 
-    // Auto login after registration
-    const loginResult = await api.login(email, password)
+    // Auto login after registration with remember_me enabled
+    const loginResult = await api.login(email, password, true)
     setLoading(false)
 
     if (loginResult.error) {

@@ -10,6 +10,7 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showDemoHint, setShowDemoHint] = useState(false)
@@ -27,7 +28,7 @@ function LoginForm() {
     setError('')
     setLoading(true)
 
-    const result = await api.login(email, password)
+    const result = await api.login(email, password, rememberMe)
 
     setLoading(false)
 
@@ -86,6 +87,20 @@ function LoginForm() {
               autoComplete="current-password"
               required
             />
+          </div>
+
+          {/* Remember me checkbox */}
+          <div className="flex items-center">
+            <input
+              id="remember-me"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 text-primary-600 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500"
+            />
+            <label htmlFor="remember-me" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              Remember me for 30 days
+            </label>
           </div>
 
           {error && (

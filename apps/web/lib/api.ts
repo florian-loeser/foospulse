@@ -82,11 +82,11 @@ class ApiClient {
     })
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, rememberMe: boolean = false) {
     const result = await this.request<{ token: string; user: unknown }>(
       'POST',
       '/api/auth/login',
-      { email, password }
+      { email, password, remember_me: rememberMe }
     )
     if (result.data?.token) {
       this.setToken(result.data.token)
