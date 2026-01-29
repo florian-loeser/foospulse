@@ -80,6 +80,7 @@ async def get_session_by_share_token(
         .options(
             selectinload(LiveMatchSession.players),
             selectinload(LiveMatchSession.events),
+            selectinload(LiveMatchSession.league),
         )
     )
     return result.scalar_one_or_none()

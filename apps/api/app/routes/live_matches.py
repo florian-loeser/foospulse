@@ -199,6 +199,8 @@ def format_public_response(session: LiveMatchSession, players_dict: dict[uuid.UU
         "players": players,
         "events": events,
         "started_at": session.started_at.isoformat() if session.started_at else None,
+        "league_slug": session.league.slug if session.league else None,
+        "finalized_match_id": str(session.finalized_match_id) if session.finalized_match_id else None,
     }
 
 

@@ -32,6 +32,8 @@ export interface LiveMatchState {
   startedAt?: string
   connected: boolean
   canScore: boolean
+  leagueSlug?: string
+  finalizedMatchId?: string
 }
 
 interface SSEEvent {
@@ -79,6 +81,8 @@ export function useLiveMatch(shareToken: string) {
         startedAt: result.data.started_at,
         connected: false,
         canScore: result.data.can_score,
+        leagueSlug: result.data.league_slug,
+        finalizedMatchId: result.data.finalized_match_id,
       })
     }
     setLoading(false)

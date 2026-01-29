@@ -646,9 +646,21 @@ export default function PublicViewerPage() {
 
           {/* Navigation buttons */}
           <div className="max-w-sm w-full mx-auto space-y-2">
+            {state.status === 'completed' && state.leagueSlug && state.finalizedMatchId && (
+              <a
+                href={`/league/${state.leagueSlug}/matches/${state.finalizedMatchId}`}
+                className="block w-full py-3 bg-primary-600 text-white text-center font-bold rounded-xl hover:bg-primary-700 transition-colors"
+              >
+                View Match Details & Charts
+              </a>
+            )}
             <a
               href="/leagues"
-              className="block w-full py-3 bg-primary-600 text-white text-center font-bold rounded-xl hover:bg-primary-700 transition-colors"
+              className={`block w-full py-3 text-center font-medium rounded-xl transition-colors ${
+                state.status === 'completed' && state.leagueSlug && state.finalizedMatchId
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  : 'bg-primary-600 text-white hover:bg-primary-700'
+              }`}
             >
               Back to Leagues
             </a>

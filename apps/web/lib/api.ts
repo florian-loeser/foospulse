@@ -412,6 +412,8 @@ class ApiClient {
       }>
       started_at?: string
       can_score: boolean
+      league_slug?: string
+      finalized_match_id?: string
     }>('GET', `/api/live/${shareToken}`)
   }
 
