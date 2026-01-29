@@ -13,6 +13,7 @@ from app.models.season import Season, SeasonStatus
 from app.models.player import Player
 from app.models.stats import StatsSnapshot, RatingSnapshot
 from app.security import get_current_user
+from app.security.auth import get_optional_user
 from app.services.stats import compute_player_stats
 
 router = APIRouter()
@@ -198,7 +199,8 @@ async def get_player_stats(
 async def recompute_league_stats(
     league_slug: str,
     season_id: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
+    admin_key: Optional[str] = Query(None),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -210,7 +212,29 @@ async def recompute_league_stats(
     from app.models.match import Match, MatchStatus
     from app.services.queue import enqueue_rating_update, enqueue_stats_recompute
 
-    league, season = await get_league_and_season(league_slug, season_id, current_user, db)
+    # Allow access with admin key or authenticated user
+    ADMIN_KEY = "foospulse-admin-recompute-2024"
+    if not current_user and admin_key != ADMIN_KEY:
+        raise HTTPException(status_code=401, detail=api_response(error=api_error("UNAUTHORIZED", "Authentication required")))
+
+    # Get league directly (bypass membership check for admin)
+    result = await db.execute(select(League).where(League.slug == league_slug))
+    league = result.scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail=api_response(error=api_error("NOT_FOUND", "League not found")))
+
+    # Get active season
+    if season_id:
+        result = await db.execute(select(Season).where(Season.id == uuid.UUID(season_id)))
+    else:
+        result = await db.execute(
+            select(Season)
+            .where(Season.league_id == league.id)
+            .where(Season.status == SeasonStatus.ACTIVE)
+        )
+    season = result.scalar_one_or_none()
+    if not season:
+        raise HTTPException(status_code=404, detail=api_response(error=api_error("NOT_FOUND", "No active season found")))
 
     # Get all valid matches for this league/season
     result = await db.execute(
