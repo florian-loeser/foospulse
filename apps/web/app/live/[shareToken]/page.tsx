@@ -3,7 +3,7 @@
 import { useParams, useSearchParams } from 'next/navigation'
 import { useLiveMatch } from '@/lib/hooks/useLiveMatch'
 import { useElapsedSeconds } from '@/components/live/LiveScoreDisplay'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 
 function formatTime(seconds: number): string {
@@ -32,9 +32,23 @@ export default function PublicViewerPage() {
 
   const elapsedSeconds = useElapsedSeconds(state?.startedAt, state?.status)
   // User can score if they have scorer secret OR if API says they can score (player in match or league member)
-  const canScore = !!scorerSecret || state?.canScore || false
+  // External viewers via share link (no secret, not logged in) should NOT be able to score
+  const canScore = !!scorerSecret || (state?.canScore === true)
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/live/${shareToken}` : ''
+  // Spectator share URL without scorer secret
+  const spectatorUrl = typeof window !== 'undefined' ? `${window.location.origin}/live/${shareToken}` : ''
+
+  // Auto-refresh for spectators (who cannot score) every 5 seconds
+  useEffect(() => {
+    if (canScore || loading) return // Don't auto-refresh if user can score or still loading
+
+    const interval = setInterval(() => {
+      reload()
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [canScore, loading, reload])
 
   const recordGoal = async (team: 'A' | 'B') => {
     if (!canScore) return
@@ -99,14 +113,15 @@ export default function PublicViewerPage() {
   }
 
   const copyShareLink = async () => {
+    // Always share the spectator URL (without scorer secret)
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      await navigator.clipboard.writeText(spectatorUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Fallback for older browsers
       const input = document.createElement('input')
-      input.value = shareUrl
+      input.value = spectatorUrl
       document.body.appendChild(input)
       input.select()
       document.execCommand('copy')
@@ -207,8 +222,19 @@ export default function PublicViewerPage() {
 
       {/* Waiting State - Viewer Only */}
       {isWaiting && !canScore && (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <p className="text-gray-600 dark:text-gray-400">Waiting for match to start...</p>
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          {/* Spectator banner */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">Spectator Mode</span>
+          </div>
+          <div className="animate-pulse flex flex-col items-center">
+            <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full mb-3"></div>
+            <p className="text-gray-600 dark:text-gray-400">Waiting for match to start...</p>
+          </div>
         </div>
       )}
 
@@ -443,10 +469,10 @@ export default function PublicViewerPage() {
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Share Match</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Anyone with this link can watch the match live.
+                  Anyone with this link can watch the match live (spectator only).
                 </p>
                 <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-3 mb-4">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 break-all font-mono">{shareUrl}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 break-all font-mono">{spectatorUrl}</p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -485,6 +511,15 @@ export default function PublicViewerPage() {
       {/* Viewer Only - Active Match */}
       {isMatchActive && !canScore && (
         <div className="flex-1 p-4 overflow-auto">
+          {/* Spectator banner */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">Spectator Mode - Auto-refreshing every 5s</span>
+          </div>
+
           <div className="bg-white dark:bg-gray-800 rounded-2xl divide-y dark:divide-gray-700">
             <h3 className="p-4 font-semibold text-gray-700 dark:text-gray-300">Event Feed</h3>
             {state.events.filter(e => !e.undone).length === 0 ? (
