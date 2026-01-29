@@ -31,6 +31,7 @@ export interface LiveMatchState {
   events: LiveMatchEvent[]
   startedAt?: string
   connected: boolean
+  canScore: boolean
 }
 
 interface SSEEvent {
@@ -77,6 +78,7 @@ export function useLiveMatch(shareToken: string) {
         })),
         startedAt: result.data.started_at,
         connected: false,
+        canScore: result.data.can_score,
       })
     }
     setLoading(false)

@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.user import User
 from app.models.league import League, LeagueMember
+from app.models.player import Player
+from app.models.live_match import LiveMatchSession, LiveMatchSessionPlayer, LiveMatchStatus
 from app.schemas.auth import (
     UserCreate, UserLogin, UserResponse, TokenResponse, MeResponse, MembershipInfo
 )
@@ -120,7 +122,7 @@ async def get_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get current user profile with memberships."""
+    """Get current user profile with memberships and active live match."""
     # Get user's league memberships
     result = await db.execute(
         select(LeagueMember, League)
@@ -136,7 +138,36 @@ async def get_me(
             "league_slug": league.slug,
             "role": member.role.value if hasattr(member.role, 'value') else member.role
         })
-    
+
+    # Check for active live match where user's player is participating
+    active_live_match = None
+
+    # Get all player IDs for this user across all leagues
+    player_result = await db.execute(
+        select(Player.id).where(Player.user_id == current_user.id)
+    )
+    user_player_ids = [p for p in player_result.scalars().all()]
+
+    if user_player_ids:
+        # Find active live match sessions where user's player is participating
+        active_statuses = [LiveMatchStatus.WAITING.value, LiveMatchStatus.ACTIVE.value, LiveMatchStatus.PAUSED.value]
+
+        result = await db.execute(
+            select(LiveMatchSession)
+            .join(LiveMatchSessionPlayer, LiveMatchSession.id == LiveMatchSessionPlayer.session_id)
+            .where(LiveMatchSessionPlayer.player_id.in_(user_player_ids))
+            .where(LiveMatchSession.status.in_(active_statuses))
+            .limit(1)
+        )
+        session = result.scalar_one_or_none()
+
+        if session:
+            active_live_match = {
+                "share_token": session.share_token,
+                "status": session.status,
+                "mode": session.mode,
+            }
+
     return api_response(data={
         "user": {
             "id": str(current_user.id),
@@ -144,7 +175,8 @@ async def get_me(
             "display_name": current_user.display_name,
             "created_at": current_user.created_at.isoformat()
         },
-        "memberships": memberships
+        "memberships": memberships,
+        "active_live_match": active_live_match
     })
 
 

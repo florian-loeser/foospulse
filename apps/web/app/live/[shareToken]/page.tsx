@@ -27,44 +27,46 @@ export default function PublicViewerPage() {
   const [activeTab, setActiveTab] = useState<'score' | 'events'>('score')
 
   const elapsedSeconds = useElapsedSeconds(state?.startedAt, state?.status)
-  const hasScorer = !!scorerSecret
+  // User can score if they have scorer secret OR if API says they can score (player in match or league member)
+  const canScore = !!scorerSecret || state?.canScore || false
 
   const recordGoal = async (team: 'A' | 'B') => {
-    if (!hasScorer) return
+    if (!canScore) return
     setActionLoading(true)
-    await api.recordLiveEvent(shareToken, { event_type: 'goal', team, elapsed_seconds: elapsedSeconds }, scorerSecret)
+    // Pass scorerSecret if available, otherwise API will use auth token
+    await api.recordLiveEvent(shareToken, { event_type: 'goal', team, elapsed_seconds: elapsedSeconds }, scorerSecret || undefined)
     await reload()
     setActionLoading(false)
   }
 
   const recordGamellized = async (team: 'A' | 'B') => {
-    if (!hasScorer) return
+    if (!canScore) return
     setActionLoading(true)
-    await api.recordLiveEvent(shareToken, { event_type: 'gamellized', team, elapsed_seconds: elapsedSeconds }, scorerSecret)
+    await api.recordLiveEvent(shareToken, { event_type: 'gamellized', team, elapsed_seconds: elapsedSeconds }, scorerSecret || undefined)
     await reload()
     setActionLoading(false)
   }
 
   const recordLobbed = async (team: 'A' | 'B') => {
-    if (!hasScorer) return
+    if (!canScore) return
     setActionLoading(true)
-    await api.recordLiveEvent(shareToken, { event_type: 'lobbed', team, elapsed_seconds: elapsedSeconds }, scorerSecret)
+    await api.recordLiveEvent(shareToken, { event_type: 'lobbed', team, elapsed_seconds: elapsedSeconds }, scorerSecret || undefined)
     await reload()
     setActionLoading(false)
   }
 
   const handleUndo = async (eventId: string) => {
-    if (!hasScorer) return
+    if (!canScore) return
     setActionLoading(true)
-    await api.undoLiveEvent(shareToken, eventId, scorerSecret)
+    await api.undoLiveEvent(shareToken, eventId, scorerSecret || undefined)
     await reload()
     setActionLoading(false)
   }
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!hasScorer) return
+    if (!canScore) return
     setActionLoading(true)
-    await api.updateLiveStatus(shareToken, newStatus, scorerSecret)
+    await api.updateLiveStatus(shareToken, newStatus, scorerSecret || undefined)
     await reload()
     setActionLoading(false)
   }
@@ -146,7 +148,7 @@ export default function PublicViewerPage() {
       </div>
 
       {/* Waiting State - Scorer Only */}
-      {isWaiting && hasScorer && (
+      {isWaiting && canScore && (
         <div className="flex-1 flex items-center justify-center p-4">
           <button
             onClick={() => handleStatusChange('active')}
@@ -159,14 +161,14 @@ export default function PublicViewerPage() {
       )}
 
       {/* Waiting State - Viewer Only */}
-      {isWaiting && !hasScorer && (
+      {isWaiting && !canScore && (
         <div className="flex-1 flex items-center justify-center p-4">
           <p className="text-gray-600 dark:text-gray-400">Waiting for match to start...</p>
         </div>
       )}
 
       {/* Scorer Controls */}
-      {isMatchActive && hasScorer && (
+      {isMatchActive && canScore && (
         <>
           {/* Tab Switcher */}
           <div className="flex mx-4 mt-4 bg-gray-200 dark:bg-gray-700 rounded-xl p-1">
@@ -310,7 +312,7 @@ export default function PublicViewerPage() {
       )}
 
       {/* Viewer Only - Active Match */}
-      {isMatchActive && !hasScorer && (
+      {isMatchActive && !canScore && (
         <div className="flex-1 p-4 overflow-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl divide-y dark:divide-gray-700">
             <h3 className="p-4 font-semibold text-gray-700 dark:text-gray-300">Event Feed</h3>

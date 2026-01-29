@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ToastProvider } from '@/components/Toast'
+import { ActiveMatchRedirect } from '@/components/ActiveMatchRedirect'
 
 export const metadata: Metadata = {
   title: 'FoosPulse - Office Foosball League',
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="antialiased text-black dark:text-white bg-gray-50 dark:bg-gray-900">
         <ThemeProvider>
           <ToastProvider>
+            <ActiveMatchRedirect />
             {children}
           </ToastProvider>
         </ThemeProvider>

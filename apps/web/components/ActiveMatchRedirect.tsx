@@ -1,0 +1,51 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { api } from '@/lib/api'
+
+/**
+ * Component that checks if the current user has an active live match
+ * and redirects them to it. This enforces that players in a live match
+ * stay in the match view until it's completed.
+ */
+export function ActiveMatchRedirect() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [checking, setChecking] = useState(false)
+
+  useEffect(() => {
+    // Don't check if we're already on a live match page or auth pages
+    if (pathname.startsWith('/live/') || pathname.startsWith('/auth/') || pathname === '/help') {
+      return
+    }
+
+    // Don't check if user isn't logged in
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    if (!token) {
+      return
+    }
+
+    const checkActiveMatch = async () => {
+      if (checking) return
+      setChecking(true)
+
+      try {
+        const result = await api.getMe()
+        if (result.data?.active_live_match) {
+          const { share_token } = result.data.active_live_match
+          // Redirect to the live match
+          router.replace(`/live/${share_token}`)
+        }
+      } catch {
+        // Ignore errors - user might not be logged in
+      } finally {
+        setChecking(false)
+      }
+    }
+
+    checkActiveMatch()
+  }, [pathname, router, checking])
+
+  return null
+}

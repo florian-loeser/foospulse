@@ -95,7 +95,15 @@ class ApiClient {
   }
 
   async getMe() {
-    return this.request<{ user: unknown; memberships: unknown[] }>(
+    return this.request<{
+      user: unknown
+      memberships: unknown[]
+      active_live_match: {
+        share_token: string
+        status: string
+        mode: string
+      } | null
+    }>(
       'GET',
       '/api/auth/me'
     )
@@ -403,6 +411,7 @@ class ApiClient {
         elapsed_seconds?: number
       }>
       started_at?: string
+      can_score: boolean
     }>('GET', `/api/live/${shareToken}`)
   }
 

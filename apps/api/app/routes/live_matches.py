@@ -337,6 +337,7 @@ async def get_live_match(
 @public_router.get("/live/{share_token}")
 async def get_live_match_public(
     share_token: str,
+    current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get live match session state by share token (public access)."""
@@ -357,7 +358,13 @@ async def get_live_match_public(
 
     players_dict = await get_players_dict(db, all_player_ids)
 
-    return api_response(data=format_public_response(session, players_dict))
+    response = format_public_response(session, players_dict)
+
+    # Check if current user can score (is a player in the match or has league access)
+    can_score = await verify_scorer_access(session, None, current_user, db)
+    response["can_score"] = can_score
+
+    return api_response(data=response)
 
 
 @public_router.get("/live/{share_token}/stream")
@@ -390,11 +397,31 @@ async def verify_scorer_access(
     current_user: Optional[User],
     db: AsyncSession,
 ) -> bool:
-    """Verify that the caller has permission to score."""
-    # If user is authenticated and is the creator or a league member, allow
+    """Verify that the caller has permission to score.
+
+    Allowed scorers:
+    1. The creator of the match
+    2. Any league member
+    3. Anyone with the scorer secret
+    4. Any user whose player is participating in the match
+    """
     if current_user:
+        # Creator always has access
         if session.created_by_user_id == current_user.id:
             return True
+
+        # Check if user's player is in the match
+        from app.models.player import Player
+        result = await db.execute(
+            select(Player.id).where(Player.user_id == current_user.id)
+        )
+        user_player_ids = [p for p in result.scalars().all()]
+
+        if user_player_ids:
+            session_player_ids = [p.player_id for p in session.players]
+            if any(pid in session_player_ids for pid in user_player_ids):
+                return True
+
         # Check league membership
         result = await db.execute(
             select(LeagueMember)
