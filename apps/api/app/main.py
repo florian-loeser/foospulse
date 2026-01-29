@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine
-from app.routes import auth, leagues, players, matches, stats, artifacts, seasons, exports, members, live_matches
+from app.routes import auth, leagues, players, matches, stats, artifacts, seasons, exports, members, live_matches, feedback
 from app.logging import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware
 
@@ -96,6 +96,10 @@ OPENAPI_TAGS = [
         "name": "live-matches",
         "description": "Real-time live match sessions with SSE streaming for spectators.",
     },
+    {
+        "name": "feedback",
+        "description": "User feedback collection for platform improvements.",
+    },
 ]
 
 app = FastAPI(
@@ -172,6 +176,7 @@ app.include_router(exports.router, prefix="/api/leagues", tags=["exports"])
 app.include_router(members.router, prefix="/api/leagues", tags=["members"])
 app.include_router(live_matches.router, prefix="/api/leagues", tags=["live-matches"])
 app.include_router(live_matches.public_router, prefix="/api", tags=["live-matches"])
+app.include_router(feedback.router, prefix="/api", tags=["feedback"])
 
 
 @app.get(

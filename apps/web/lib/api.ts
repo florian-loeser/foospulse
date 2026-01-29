@@ -611,6 +611,14 @@ class ApiClient {
       duration_seconds: number | null
     }>('GET', `/api/match/${matchId}/events`)
   }
+
+  async submitFeedback(message: string, category: string = 'suggestion', page?: string) {
+    return this.request<{ success: boolean; message: string }>('POST', '/api/feedback', {
+      message,
+      category,
+      page,
+    })
+  }
 }
 
 export const api = new ApiClient(API_URL)

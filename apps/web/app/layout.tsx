@@ -3,6 +3,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ToastProvider } from '@/components/Toast'
 import { ActiveMatchRedirect } from '@/components/ActiveMatchRedirect'
+import { FeedbackButton } from '@/components/FeedbackButton'
 
 export const metadata: Metadata = {
   title: 'FoosPulse - Office Foosball League',
@@ -40,6 +41,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ToastProvider>
             <ActiveMatchRedirect />
+            <FeedbackButton />
             {children}
           </ToastProvider>
         </ThemeProvider>
