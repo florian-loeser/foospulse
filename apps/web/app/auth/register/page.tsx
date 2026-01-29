@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -32,9 +33,12 @@ export default function RegisterPage() {
 
     if (loginResult.error) {
       setError('Account created! Please sign in.')
-      router.push('/auth/login')
+      const redirect = searchParams.get('redirect')
+      router.push(redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : '/auth/login')
     } else {
-      router.push('/leagues')
+      // Redirect to the original destination or leagues page
+      const redirect = searchParams.get('redirect')
+      router.push(redirect || '/leagues')
     }
   }
 
@@ -150,7 +154,13 @@ export default function RegisterPage() {
 
         <p className="text-center mt-6 text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
-          <Link href="/auth/login" className="text-primary-600 hover:underline font-medium">
+          <Link
+            href={searchParams.get('redirect')
+              ? `/auth/login?redirect=${encodeURIComponent(searchParams.get('redirect')!)}`
+              : '/auth/login'
+            }
+            className="text-primary-600 hover:underline font-medium"
+          >
             Sign in
           </Link>
         </p>
@@ -186,5 +196,17 @@ function PasswordCheck({ label, valid }: { label: string; valid: boolean }) {
       )}
       {label}
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
+      </main>
+    }>
+      <RegisterForm />
+    </Suspense>
   )
 }
