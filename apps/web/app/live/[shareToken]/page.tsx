@@ -553,8 +553,8 @@ export default function PublicViewerPage() {
 
       {/* Ended State */}
       {isEnded && (
-        <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg text-center max-w-sm w-full">
+        <div className="flex-1 p-4 overflow-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg text-center max-w-sm w-full mx-auto mb-4">
             {state.status === 'completed' ? (
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -568,20 +568,96 @@ export default function PublicViewerPage() {
                 </svg>
               </div>
             )}
-            <p className="text-gray-600 dark:text-gray-400 mb-4 font-medium">
+            <p className="text-lg font-bold text-gray-900 dark:text-white mb-2">
               {state.status === 'completed' ? 'Match Complete!' : 'Match Abandoned'}
             </p>
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-6 mb-4">
               <div className="text-center">
-                <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">{state.teamAScore}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Blue</p>
+                <p className="text-5xl font-bold text-blue-600 dark:text-blue-400">{state.teamAScore}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Blue</p>
               </div>
-              <span className="text-2xl text-gray-300 dark:text-gray-600">-</span>
+              <span className="text-3xl text-gray-300 dark:text-gray-600">-</span>
               <div className="text-center">
-                <p className="text-4xl font-bold text-red-600 dark:text-red-400">{state.teamBScore}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Red</p>
+                <p className="text-5xl font-bold text-red-600 dark:text-red-400">{state.teamBScore}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Red</p>
               </div>
             </div>
+
+            {/* Match duration */}
+            {state.startedAt && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Duration: {formatTime(elapsedSeconds)}
+              </p>
+            )}
+          </div>
+
+          {/* Players */}
+          {state.players.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg max-w-sm w-full mx-auto mb-4">
+              <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Players</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-2">Blue Team</p>
+                  {state.players.filter(p => p.team === 'A').map(p => (
+                    <p key={p.player_id} className="text-sm text-gray-700 dark:text-gray-300">
+                      {p.nickname} <span className="text-xs text-gray-400">({p.position})</span>
+                    </p>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-2">Red Team</p>
+                  {state.players.filter(p => p.team === 'B').map(p => (
+                    <p key={p.player_id} className="text-sm text-gray-700 dark:text-gray-300">
+                      {p.nickname} <span className="text-xs text-gray-400">({p.position})</span>
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Event History */}
+          {state.events.filter(e => !e.undone).length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg max-w-sm w-full mx-auto mb-4 divide-y dark:divide-gray-700">
+              <h3 className="p-4 font-semibold text-gray-700 dark:text-gray-300">Match Events</h3>
+              {state.events
+                .filter(e => !e.undone)
+                .slice()
+                .reverse()
+                .map((event) => (
+                  <div key={event.id} className="flex items-center gap-3 p-3">
+                    <span className={`text-lg font-bold ${event.team === 'A' ? 'text-blue-600' : 'text-red-600'}`}>
+                      {event.event_type === 'goal' ? '+1' : event.event_type === 'gamellized' ? '-1' : event.event_type === 'lobbed' ? '-3' : ''}
+                    </span>
+                    <div>
+                      <p className="font-medium text-sm text-black dark:text-white">
+                        {event.event_type === 'goal' && `Goal ${teamName(event.team || '')}`}
+                        {event.event_type === 'gamellized' && `Gamelle ${teamName(event.team || '')}`}
+                        {event.event_type === 'lobbed' && `Lob ${teamName(event.team || '')}`}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {event.elapsed_seconds !== undefined ? formatTime(event.elapsed_seconds) : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Navigation buttons */}
+          <div className="max-w-sm w-full mx-auto space-y-2">
+            <a
+              href="/leagues"
+              className="block w-full py-3 bg-primary-600 text-white text-center font-bold rounded-xl hover:bg-primary-700 transition-colors"
+            >
+              Back to Leagues
+            </a>
+            <a
+              href="/"
+              className="block w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-center font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              Home
+            </a>
           </div>
         </div>
       )}
