@@ -25,10 +25,16 @@ export default function PublicViewerPage() {
   const { state, error, loading, reload } = useLiveMatch(shareToken)
   const [actionLoading, setActionLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'score' | 'events'>('score')
+  const [showEndConfirm, setShowEndConfirm] = useState(false)
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false)
+  const [showShare, setShowShare] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const elapsedSeconds = useElapsedSeconds(state?.startedAt, state?.status)
   // User can score if they have scorer secret OR if API says they can score (player in match or league member)
   const canScore = !!scorerSecret || state?.canScore || false
+
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/live/${shareToken}` : ''
 
   const recordGoal = async (team: 'A' | 'B') => {
     if (!canScore) return
@@ -69,6 +75,45 @@ export default function PublicViewerPage() {
     await api.updateLiveStatus(shareToken, newStatus, scorerSecret || undefined)
     await reload()
     setActionLoading(false)
+  }
+
+  const handleEndMatch = async () => {
+    if (!canScore) return
+    setActionLoading(true)
+    // First set status to completed
+    await api.updateLiveStatus(shareToken, 'completed', scorerSecret || undefined)
+    // Then finalize (save to match history)
+    await api.finalizeLiveMatch(shareToken, scorerSecret || undefined)
+    await reload()
+    setActionLoading(false)
+    setShowEndConfirm(false)
+  }
+
+  const handleAbandon = async () => {
+    if (!canScore) return
+    setActionLoading(true)
+    await api.updateLiveStatus(shareToken, 'abandoned', scorerSecret || undefined)
+    await reload()
+    setActionLoading(false)
+    setShowAbandonConfirm(false)
+  }
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback for older browsers
+      const input = document.createElement('input')
+      input.value = shareUrl
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   if (loading) {
@@ -289,25 +334,151 @@ export default function PublicViewerPage() {
           )}
 
           {/* Bottom Controls */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
-            {state.status === 'active' ? (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 space-y-2">
+            {/* Main action row */}
+            <div className="flex gap-2">
+              {state.status === 'active' ? (
+                <button
+                  onClick={() => handleStatusChange('paused')}
+                  disabled={actionLoading}
+                  className="flex-1 py-3 bg-yellow-500 text-white rounded-xl font-bold active:bg-yellow-600 disabled:opacity-50"
+                >
+                  Pause
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleStatusChange('active')}
+                  disabled={actionLoading}
+                  className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold active:bg-green-700 disabled:opacity-50"
+                >
+                  Resume
+                </button>
+              )}
               <button
-                onClick={() => handleStatusChange('paused')}
+                onClick={() => setShowEndConfirm(true)}
                 disabled={actionLoading}
-                className="w-full py-4 bg-yellow-500 text-white rounded-xl font-bold active:bg-yellow-600 disabled:opacity-50"
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold active:bg-blue-700 disabled:opacity-50"
               >
-                Pause
+                End & Save
               </button>
-            ) : (
+            </div>
+            {/* Secondary actions */}
+            <div className="flex gap-2">
               <button
-                onClick={() => handleStatusChange('active')}
-                disabled={actionLoading}
-                className="w-full py-4 bg-green-600 text-white rounded-xl font-bold active:bg-green-700 disabled:opacity-50"
+                onClick={() => setShowShare(true)}
+                className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium flex items-center justify-center gap-2"
               >
-                Resume
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share
               </button>
-            )}
+              <button
+                onClick={() => setShowAbandonConfirm(true)}
+                disabled={actionLoading}
+                className="flex-1 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-medium"
+              >
+                Abandon
+              </button>
+            </div>
           </div>
+
+          {/* End Match Confirmation Modal */}
+          {showEndConfirm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">End Match?</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  This will save the match to history. Final score: {state.teamAScore} - {state.teamBScore}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowEndConfirm(false)}
+                    className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEndMatch}
+                    disabled={actionLoading}
+                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Saving...' : 'End & Save'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Abandon Confirmation Modal */}
+          {showAbandonConfirm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Abandon Match?</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  This will cancel the match without saving. The match will not count in statistics.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowAbandonConfirm(false)}
+                    className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAbandon}
+                    disabled={actionLoading}
+                    className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Abandoning...' : 'Abandon'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Share Modal */}
+          {showShare && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Share Match</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Anyone with this link can watch the match live.
+                </p>
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-3 mb-4">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 break-all font-mono">{shareUrl}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowShare(false)}
+                    className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={copyShareLink}
+                    className="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+                  >
+                    {copied ? (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                        Copy Link
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
