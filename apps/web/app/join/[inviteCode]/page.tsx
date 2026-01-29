@@ -18,6 +18,7 @@ export default function JoinLeaguePage() {
 
   const [league, setLeague] = useState<LeagueInfo | null>(null)
   const [alreadyMember, setAlreadyMember] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState('')
@@ -33,11 +34,6 @@ export default function JoinLeaguePage() {
     const result = await api.getLeagueByInvite(inviteCode)
 
     if (result.error) {
-      if (result.error.code === 'UNAUTHORIZED') {
-        // Not logged in - redirect to login with return URL
-        router.push(`/auth/login?redirect=/join/${inviteCode}`)
-        return
-      }
       setError(result.error.message || 'Invalid invite link')
       setLoading(false)
       return
@@ -46,6 +42,7 @@ export default function JoinLeaguePage() {
     if (result.data) {
       setLeague(result.data.league)
       setAlreadyMember(result.data.already_member)
+      setLoggedIn(result.data.logged_in)
     }
     setLoading(false)
   }
@@ -140,31 +137,46 @@ export default function JoinLeaguePage() {
           Join <span className="font-semibold text-gray-900 dark:text-white">{league.name}</span> on FoosPulse
         </p>
 
-        <button
-          onClick={handleJoin}
-          disabled={joining}
-          className="w-full py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-lg rounded-xl hover:from-primary-600 hover:to-primary-700 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl active:scale-[0.98] flex items-center justify-center gap-2"
-        >
-          {joining ? (
-            <>
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Joining...
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              Join League
-            </>
-          )}
-        </button>
+        {loggedIn ? (
+          <button
+            onClick={handleJoin}
+            disabled={joining}
+            className="w-full py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-lg rounded-xl hover:from-primary-600 hover:to-primary-700 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            {joining ? (
+              <>
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Joining...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Join League
+              </>
+            )}
+          </button>
+        ) : (
+          <Link
+            href={`/auth/login?redirect=/join/${inviteCode}`}
+            className="w-full py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-lg rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg hover:shadow-xl active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+            </svg>
+            Sign In to Join
+          </Link>
+        )}
 
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
-          By joining, you&apos;ll be able to log matches and track your stats.
+          {loggedIn
+            ? "By joining, you'll be able to log matches and track your stats."
+            : "Sign in or create an account to join this league."
+          }
         </p>
       </div>
     </main>

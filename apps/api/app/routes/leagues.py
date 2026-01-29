@@ -13,7 +13,7 @@ from app.models.league import League, LeagueMember, MemberRole, MemberStatus, Le
 from app.models.season import Season, SeasonStatus
 from app.models.player import Player
 from app.schemas.league import LeagueCreate, LeagueResponse
-from app.security import get_current_user
+from app.security import get_current_user, get_optional_user
 
 router = APIRouter()
 
@@ -298,7 +298,7 @@ async def update_league_settings(
 @router.get("/join/{invite_code}")
 async def get_league_by_invite(
     invite_code: str,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get league info by invite code (for preview before joining)."""
@@ -311,14 +311,17 @@ async def get_league_by_invite(
             detail=api_response(error=api_error("NOT_FOUND", "Invalid invite code"))
         )
 
-    # Check if already a member
-    result = await db.execute(
-        select(LeagueMember)
-        .where(LeagueMember.league_id == league.id)
-        .where(LeagueMember.user_id == current_user.id)
-        .where(LeagueMember.status == MemberStatus.ACTIVE)
-    )
-    existing_member = result.scalar_one_or_none()
+    # Check if already a member (only if logged in)
+    already_member = False
+    if current_user:
+        result = await db.execute(
+            select(LeagueMember)
+            .where(LeagueMember.league_id == league.id)
+            .where(LeagueMember.user_id == current_user.id)
+            .where(LeagueMember.status == MemberStatus.ACTIVE)
+        )
+        existing_member = result.scalar_one_or_none()
+        already_member = existing_member is not None
 
     return api_response(data={
         "league": {
@@ -326,7 +329,8 @@ async def get_league_by_invite(
             "name": league.name,
             "slug": league.slug
         },
-        "already_member": existing_member is not None
+        "already_member": already_member,
+        "logged_in": current_user is not None
     })
 
 
