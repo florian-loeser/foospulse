@@ -40,6 +40,11 @@ class ApiClient {
     path: string,
     body?: unknown
   ): Promise<ApiResponse<T>> {
+    // Always get fresh token from localStorage in case it was set by another page/redirect
+    if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem('token')
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
@@ -314,7 +319,7 @@ class ApiClient {
   }
 
   async getLeagueByInvite(inviteCode: string) {
-    return this.request<{ league: { id: string; name: string; slug: string }; already_member: boolean }>(
+    return this.request<{ league: { id: string; name: string; slug: string }; already_member: boolean; logged_in: boolean }>(
       'GET',
       `/api/leagues/join/${inviteCode}`
     )
