@@ -8,12 +8,14 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt .
+# Install Python dependencies (supports both local and monorepo builds)
+COPY apps/api/requirements.txt* requirements.txt* ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code (supports both local and monorepo builds)
+COPY apps/api/app* apps/api/alembic* apps/api/alembic.ini* ./
+COPY app* alembic* alembic.ini* ./
+RUN rm -f requirements.txt
 
 # Create artifacts directory
 RUN mkdir -p /data/artifacts
