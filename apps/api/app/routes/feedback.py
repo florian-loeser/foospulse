@@ -1,23 +1,20 @@
 """
 Feedback routes for collecting user suggestions.
 """
-import os
-from datetime import datetime
 from typing import Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import get_db
 from app.models.user import User
+from app.models.feedback import Feedback
 from app.security.auth import get_optional_user
 
 router = APIRouter()
-
-# Path to the feedback backlog file
-FEEDBACK_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))),
-    "USER_FEEDBACK.md"
-)
 
 
 def api_response(data=None, error=None):
@@ -38,54 +35,50 @@ class FeedbackRequest(BaseModel):
 async def submit_feedback(
     data: FeedbackRequest,
     current_user: Optional[User] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit user feedback.
 
-    Feedback is stored in USER_FEEDBACK.md for review and can be used
-    to prioritize improvements to the platform.
+    Feedback is stored in the database for review.
     """
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    user_info = current_user.email if current_user else "Anonymous"
+    feedback = Feedback(
+        message=data.message,
+        category=data.category,
+        page=data.page,
+        user_email=current_user.email if current_user else None,
+    )
+    db.add(feedback)
+    await db.flush()
 
-    # Format the feedback entry
-    entry = f"""
-## [{data.category.upper()}] {timestamp}
+    return api_response(data={
+        "success": True,
+        "message": "Thank you for your feedback!"
+    })
 
-**From:** {user_info}
-**Page:** {data.page or "Not specified"}
 
-{data.message}
+@router.get("/feedback")
+async def list_feedback(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all feedback entries (for admin review).
+    """
+    result = await db.execute(
+        select(Feedback).order_by(Feedback.created_at.desc())
+    )
+    entries = result.scalars().all()
 
----
-"""
-
-    # Append to the feedback file
-    try:
-        # Create file with header if it doesn't exist
-        if not os.path.exists(FEEDBACK_FILE):
-            with open(FEEDBACK_FILE, "w") as f:
-                f.write("""# FoosPulse User Feedback Backlog
-
-This file is automatically populated with user feedback from the app.
-Use this to prioritize improvements and new features.
-
-To process feedback, you can ask Claude: "Update the app based on user feedback"
-
----
-
-""")
-
-        # Append the new feedback
-        with open(FEEDBACK_FILE, "a") as f:
-            f.write(entry)
-
-        return api_response(data={
-            "success": True,
-            "message": "Thank you for your feedback!"
-        })
-    except Exception as e:
-        return api_response(
-            data=None,
-            error={"code": "FEEDBACK_ERROR", "message": "Failed to save feedback", "details": str(e)}
-        )
+    return api_response(data={
+        "feedback": [
+            {
+                "id": str(f.id),
+                "message": f.message,
+                "category": f.category,
+                "page": f.page,
+                "user_email": f.user_email,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f in entries
+        ]
+    })

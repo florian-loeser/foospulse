@@ -17,6 +17,7 @@ from app.models.live_match import (
     LiveMatchMode,
     LiveEventType,
 )
+from app.models.feedback import Feedback
 
 __all__ = [
     "User",
@@ -38,4 +39,5 @@ __all__ = [
     "LiveMatchStatus",
     "LiveMatchMode",
     "LiveEventType",
+    "Feedback",
 ]
