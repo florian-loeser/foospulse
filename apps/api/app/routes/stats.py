@@ -192,3 +192,44 @@ async def get_player_stats(
     
     stats = await compute_player_stats(db, player, league, season)
     return api_response(data={"player_stats": stats})
+
+
+@router.post("/{league_slug}/stats/recompute")
+async def recompute_league_stats(
+    league_slug: str,
+    season_id: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Recompute all ratings and stats for a league.
+
+    This triggers rating computation for all matches and then recomputes stats.
+    Useful when the worker was down and ratings weren't computed.
+    """
+    from app.models.match import Match, MatchStatus
+    from app.services.queue import enqueue_rating_update, enqueue_stats_recompute
+
+    league, season = await get_league_and_season(league_slug, season_id, current_user, db)
+
+    # Get all valid matches for this league/season
+    result = await db.execute(
+        select(Match)
+        .where(Match.league_id == league.id)
+        .where(Match.season_id == season.id)
+        .where(Match.status == MatchStatus.VALID)
+        .order_by(Match.played_at.asc())
+    )
+    matches = result.scalars().all()
+
+    # Trigger rating updates for each match
+    for match in matches:
+        await enqueue_rating_update(str(match.id))
+
+    # Trigger stats recompute
+    await enqueue_stats_recompute(str(league.id), str(season.id))
+
+    return api_response(data={
+        "message": f"Triggered recompute for {len(matches)} matches",
+        "matches_queued": len(matches)
+    })
