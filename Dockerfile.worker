@@ -19,5 +19,5 @@ COPY apps/worker/tasks ./tasks
 # Create artifacts directory
 RUN mkdir -p /data/artifacts
 
-# Run Celery worker
-CMD celery -A worker.app worker --loglevel=info
+# Run Celery worker - listen to all queues
+CMD celery -A worker.app worker --loglevel=info -Q default,ratings,stats,artifacts

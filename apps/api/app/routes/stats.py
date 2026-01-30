@@ -85,7 +85,7 @@ async def get_leaderboards(
     result = await db.execute(
         select(StatsSnapshot).where(StatsSnapshot.league_id == league.id)
         .where(StatsSnapshot.season_id == season.id).where(StatsSnapshot.snapshot_type == "leaderboards")
-        .order_by(StatsSnapshot.computed_at.desc())
+        .order_by(StatsSnapshot.computed_at.desc()).limit(1)
     )
     snapshot = result.scalar_one_or_none()
 
@@ -133,7 +133,7 @@ async def get_synergy(
     result = await db.execute(
         select(StatsSnapshot).where(StatsSnapshot.league_id == league.id)
         .where(StatsSnapshot.season_id == season.id).where(StatsSnapshot.snapshot_type == "synergy")
-        .order_by(StatsSnapshot.computed_at.desc())
+        .order_by(StatsSnapshot.computed_at.desc()).limit(1)
     )
     snapshot = result.scalar_one_or_none()
 
@@ -159,7 +159,7 @@ async def get_matchups(
     result = await db.execute(
         select(StatsSnapshot).where(StatsSnapshot.league_id == league.id)
         .where(StatsSnapshot.season_id == season.id).where(StatsSnapshot.snapshot_type == "matchups")
-        .order_by(StatsSnapshot.computed_at.desc())
+        .order_by(StatsSnapshot.computed_at.desc()).limit(1)
     )
     snapshot = result.scalar_one_or_none()
 

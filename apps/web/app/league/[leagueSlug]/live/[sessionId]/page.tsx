@@ -11,6 +11,7 @@ import { vibrateSuccess, vibrateLight, vibrateHeavy, vibrateError } from '@/lib/
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ShareLinkModal } from '@/components/ShareLinkModal'
 import { playGoalSound, playGamelleSound, playLobbedSound, playStartSound, playEndSound, playUndoSound, playSoundIfEnabled } from '@/lib/sounds'
+import { MatchCelebration } from '@/components/MatchCelebration'
 
 interface SessionData {
   id: string
@@ -499,6 +500,8 @@ export default function ScorerPage() {
       {/* Match Recap Modal */}
       {showRecap && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+          {/* Winner celebration - confetti for winner, tears for loser */}
+          <MatchCelebration isWinner={true} trigger={showRecap && currentTeamAScore !== currentTeamBScore} />
           <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md overflow-hidden animate-slide-up shadow-2xl">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white text-center">
@@ -571,7 +574,7 @@ export default function ScorerPage() {
               <div className="space-y-3 pt-2">
                 {finalMatchId && (
                   <Link
-                    href={`/league/${leagueSlug}/matches/${finalMatchId}`}
+                    href={`/league/${leagueSlug}/matches/${finalMatchId}?celebrate=true`}
                     className="block w-full py-3 bg-primary-600 text-white rounded-xl font-medium text-center active:bg-primary-700 press-effect"
                   >
                     View Match Details

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { MatchCelebration } from '@/components/MatchCelebration'
 import {
   LineChart,
   Line,
@@ -36,6 +37,7 @@ function formatTime(seconds: number): string {
 export default function MatchDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const leagueSlug = params.leagueSlug as string
   const matchId = params.matchId as string
   const [match, setMatch] = useState<any>(null)
@@ -46,6 +48,16 @@ export default function MatchDetailPage() {
   const [showVoidModal, setShowVoidModal] = useState(false)
   const [voidReason, setVoidReason] = useState('')
   const [voiding, setVoiding] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const celebrationTriggered = useRef(false)
+
+  // Trigger celebration when coming from live match
+  useEffect(() => {
+    if (searchParams.get('celebrate') === 'true' && !celebrationTriggered.current) {
+      celebrationTriggered.current = true
+      setShowCelebration(true)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     Promise.all([
@@ -212,6 +224,10 @@ export default function MatchDetailPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-8 text-black dark:text-white">
+      {/* Celebration effects when coming from live match */}
+      {showCelebration && winner !== 'draw' && (
+        <MatchCelebration isWinner={true} trigger={true} />
+      )}
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 sticky top-0 z-10 px-4 py-3 shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center gap-3">

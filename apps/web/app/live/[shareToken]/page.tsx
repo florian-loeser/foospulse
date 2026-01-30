@@ -5,6 +5,7 @@ import { useLiveMatch } from '@/lib/hooks/useLiveMatch'
 import { useElapsedSeconds } from '@/components/live/LiveScoreDisplay'
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
+import { MatchCelebration } from '@/components/MatchCelebration'
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
@@ -554,6 +555,10 @@ export default function PublicViewerPage() {
       {/* Ended State */}
       {isEnded && (
         <div className="flex-1 p-4 overflow-auto">
+          {/* Celebration effects for completed matches */}
+          {state.status === 'completed' && state.teamAScore !== state.teamBScore && (
+            <MatchCelebration isWinner={true} trigger={true} />
+          )}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg text-center max-w-sm w-full mx-auto mb-4">
             {state.status === 'completed' ? (
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
