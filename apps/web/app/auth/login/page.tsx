@@ -159,6 +159,13 @@ function LoginForm() {
             Need help?
           </Link>
         </div>
+
+        {/* Debug: API URL indicator */}
+        <div className="mt-4 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-center">
+          <p className="text-xs text-yellow-800 dark:text-yellow-200 font-mono break-all">
+            API: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8100 (default)'}
+          </p>
+        </div>
       </div>
     </main>
   )

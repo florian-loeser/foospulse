@@ -61,6 +61,12 @@ class ApiClient {
       })
 
       const data = await response.json()
+
+      // Handle HTTPException responses which wrap the body in 'detail'
+      if (!response.ok && data.detail) {
+        return data.detail as ApiResponse<T>
+      }
+
       return data
     } catch (error) {
       return {
