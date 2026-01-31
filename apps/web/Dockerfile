@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy application code
+# Copy application code (v2026-01-31-password-reset)
 COPY . .
 
 # Build the application with API URL baked in
