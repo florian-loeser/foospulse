@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
@@ -13,15 +13,6 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showDemoHint, setShowDemoHint] = useState(false)
-
-  // Only show demo hint in development
-  useEffect(() => {
-    // Check if we're in development by looking at the API URL
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
-    const isDev = apiUrl.includes('localhost') || apiUrl === ''
-    setShowDemoHint(isDev)
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -146,15 +137,6 @@ function LoginForm() {
           </Link>
         </p>
 
-        {/* Demo credentials hint - only shown in development */}
-        {showDemoHint && (
-          <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Demo Account</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300 font-mono">demo@example.com</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300 font-mono">demo123</p>
-          </div>
-        )}
-
         {/* Help link */}
         <div className="mt-6 text-center">
           <Link
@@ -168,12 +150,6 @@ function LoginForm() {
           </Link>
         </div>
 
-        {/* Debug: API URL indicator */}
-        <div className="mt-4 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-center">
-          <p className="text-xs text-yellow-800 dark:text-yellow-200 font-mono break-all">
-            API: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8100 (default)'}
-          </p>
-        </div>
       </div>
     </main>
   )
