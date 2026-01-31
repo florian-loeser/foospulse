@@ -8,7 +8,11 @@ COPY apps/web/package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Copy source code (cache bust: 2026-01-31)
+# Cache bust to force fresh copy
+ARG CACHE_BUST=20260131v2
+RUN echo "Cache bust: $CACHE_BUST"
+
+# Copy source code
 COPY apps/web .
 
 # Build argument for API URL
