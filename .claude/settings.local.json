@@ -19,7 +19,30 @@
       "Bash(git branch:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(gh repo create:*)"
+      "Bash(gh repo create:*)",
+      "Bash(git push:*)",
+      "Bash(railway login:*)",
+      "Bash(railway whoami:*)",
+      "Bash(API_CORS_ORIGINS=\"http://localhost:3100,http://localhost:3456\" docker compose:*)",
+      "Bash(docker build:*)",
+      "Bash(jq:*)",
+      "Bash(docker rmi:*)",
+      "Bash(lsof:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NmFjN2EzYy0xNzZjLTRlZDktYWI0NS01ZDNmZWE4ZDk4NDUiLCJleHAiOjE3NzAyMzgwNzJ9.XEUzWxXTbS0_vavwq0DyxA7A98yUwvGrjafe7NMcfcw\" curl -s http://localhost:8100/api/leagues -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(tail -1 echo echo '4. All Services:' docker compose ps --format 'table {{.Service}}\\\\t{{.Status}}')",
+      "Bash(railway:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/backup-db.sh:*)",
+      "Bash(git restore:*)",
+      "Bash(openssl rand:*)",
+      "Bash(WEB_URL=\"https://web-production-419c2.up.railway.app\")",
+      "Bash(__NEW_LINE_2f36fc3a3606d94a__ echo \"=== Web App Tests ===\")",
+      "Bash(__NEW_LINE_2f36fc3a3606d94a__ echo -n \", Login: \")",
+      "Bash(__NEW_LINE_2f36fc3a3606d94a__ echo -n \", Register: \")",
+      "Bash(__NEW_LINE_2f36fc3a3606d94a__ echo -n \", Leagues: \")",
+      "Bash(__NEW_LINE_2f36fc3a3606d94a__ echo \"\")",
+      "Bash(git reset:*)",
+      "Bash(git tag:*)"
     ]
   }
 }

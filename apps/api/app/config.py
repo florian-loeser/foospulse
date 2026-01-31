@@ -36,8 +36,8 @@ class Settings(BaseSettings):
 
     # Integrations
     slack_webhook_url: str = ""  # Slack webhook URL (empty = disabled)
-    sendgrid_api_key: str = ""  # SendGrid API key (empty = disabled)
-    sendgrid_from_email: str = "noreply@foospulse.app"
+    resend_api_key: str = ""  # Resend API key (empty = disabled)
+    email_from: str = "FoosPulse <onboarding@resend.dev>"
 
     # Password Reset
     password_reset_expire_hours: int = 24

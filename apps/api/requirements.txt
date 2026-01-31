@@ -36,6 +36,3 @@ httpx==0.26.0
 
 # Logging
 structlog==24.1.0
-
-# Email
-sendgrid==6.11.0

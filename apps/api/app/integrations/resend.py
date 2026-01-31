@@ -1,7 +1,7 @@
 """
-SendGrid Integration Module.
+Resend Integration Module.
 
-Provides email sending integration with SendGrid for password reset
+Provides email sending integration with Resend for password reset
 and other transactional emails.
 
 When no API key is configured, all operations are no-ops.
@@ -12,33 +12,33 @@ import httpx
 from app.config import settings
 from app.logging import get_logger
 
-logger = get_logger("integrations.sendgrid")
+logger = get_logger("integrations.resend")
 
 
-class SendGridIntegration:
+class ResendIntegration:
     """
-    SendGrid integration for sending transactional emails.
+    Resend integration for sending transactional emails.
 
     When api_key is not configured, all operations are no-ops.
     """
 
-    SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send"
+    RESEND_API_URL = "https://api.resend.com/emails"
 
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None):
         """
-        Initialize SendGrid integration.
+        Initialize Resend integration.
 
         Args:
-            api_key: SendGrid API key. If None, uses settings.
+            api_key: Resend API key. If None, uses settings.
             from_email: Sender email address. If None, uses settings.
         """
-        self.api_key = api_key or getattr(settings, "sendgrid_api_key", None)
-        self.from_email = from_email or getattr(settings, "sendgrid_from_email", "noreply@foospulse.app")
+        self.api_key = api_key or getattr(settings, "resend_api_key", None)
+        self.from_email = from_email or getattr(settings, "email_from", "FoosPulse <onboarding@resend.dev>")
         self._client: Optional[httpx.AsyncClient] = None
 
     @property
     def is_configured(self) -> bool:
-        """Check if SendGrid integration is configured."""
+        """Check if Resend integration is configured."""
         return bool(self.api_key)
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -58,47 +58,41 @@ class SendGridIntegration:
         to_email: str,
         subject: str,
         html_content: str,
-        text_content: Optional[str] = None,
     ) -> bool:
         """
-        Send an email via SendGrid.
+        Send an email via Resend.
 
         Args:
             to_email: Recipient email address
             subject: Email subject
             html_content: HTML body of the email
-            text_content: Plain text body (optional)
 
         Returns:
             True if sent successfully, False otherwise.
             Returns True (no-op) if not configured.
         """
         if not self.is_configured:
-            logger.debug("sendgrid_not_configured", action="send_skipped")
+            logger.debug("resend_not_configured", action="send_skipped")
             return True  # No-op success
 
         try:
             client = await self._get_client()
 
-            content = [{"type": "text/html", "value": html_content}]
-            if text_content:
-                content.insert(0, {"type": "text/plain", "value": text_content})
-
             payload = {
-                "personalizations": [{"to": [{"email": to_email}]}],
-                "from": {"email": self.from_email},
+                "from": self.from_email,
+                "to": [to_email],
                 "subject": subject,
-                "content": content,
+                "html": html_content,
             }
 
             logger.info(
-                "sendgrid_sending",
+                "resend_sending",
                 to_email=to_email,
                 subject=subject,
             )
 
             response = await client.post(
-                self.SENDGRID_API_URL,
+                self.RESEND_API_URL,
                 json=payload,
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
@@ -106,20 +100,19 @@ class SendGridIntegration:
                 },
             )
 
-            # SendGrid returns 202 for accepted
-            if response.status_code in (200, 202):
-                logger.info("sendgrid_sent", status="success", to_email=to_email)
+            if response.status_code == 200:
+                logger.info("resend_sent", status="success", to_email=to_email)
                 return True
             else:
                 logger.warning(
-                    "sendgrid_send_failed",
+                    "resend_send_failed",
                     status_code=response.status_code,
                     response=response.text[:200],
                 )
                 return False
 
         except Exception as e:
-            logger.error("sendgrid_send_error", error=str(e))
+            logger.error("resend_send_error", error=str(e))
             return False
 
     async def send_password_reset_email(self, to_email: str, reset_link: str) -> bool:
@@ -171,23 +164,12 @@ class SendGridIntegration:
 </html>
 """
 
-        text_content = f"""
-Reset Your FoosPulse Password
-
-We received a request to reset your password. Click the link below to create a new password:
-
-{reset_link}
-
-This link will expire in 24 hours. If you didn't request a password reset, you can safely ignore this email.
-"""
-
         return await self.send_email(
             to_email=to_email,
             subject=subject,
             html_content=html_content,
-            text_content=text_content,
         )
 
 
 # Global instance for convenience
-sendgrid = SendGridIntegration()
+resend = ResendIntegration()

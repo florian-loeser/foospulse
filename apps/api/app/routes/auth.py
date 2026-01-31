@@ -19,7 +19,7 @@ from app.security import (
     get_password_hash, verify_password, create_access_token, get_current_user, PasswordPolicy
 )
 from app.middleware.rate_limit import login_limiter, register_limiter
-from app.integrations.sendgrid import sendgrid
+from app.integrations.resend import resend
 from app.config import settings
 from app.logging import get_logger
 
@@ -236,7 +236,7 @@ async def forgot_password(
 
         # Send email (async, non-blocking failure)
         try:
-            await sendgrid.send_password_reset_email(user.email, reset_link)
+            await resend.send_password_reset_email(user.email, reset_link)
             logger.info("password_reset_email_sent", email=user.email)
         except Exception as e:
             logger.error("password_reset_email_failed", email=user.email, error=str(e))
