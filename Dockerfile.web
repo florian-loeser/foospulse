@@ -8,7 +8,7 @@ COPY apps/web/package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Copy source code
+# Copy source code (cache bust: 2026-01-31)
 COPY apps/web .
 
 # Build argument for API URL
