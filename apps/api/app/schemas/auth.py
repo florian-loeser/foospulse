@@ -49,3 +49,14 @@ class MeResponse(BaseModel):
     """Schema for /auth/me response."""
     user: UserResponse
     memberships: List[MembershipInfo] = []
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Schema for password reset request."""
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for setting new password."""
+    token: str
+    password: str = Field(..., min_length=8, max_length=128)

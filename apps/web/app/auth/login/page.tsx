@@ -89,18 +89,26 @@ function LoginForm() {
             />
           </div>
 
-          {/* Remember me checkbox */}
-          <div className="flex items-center">
-            <input
-              id="remember-me"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 text-primary-600 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500"
-            />
-            <label htmlFor="remember-me" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-              Remember me for 30 days
-            </label>
+          {/* Remember me and forgot password */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 text-primary-600 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500"
+              />
+              <label htmlFor="remember-me" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                Remember me
+              </label>
+            </div>
+            <Link
+              href="/auth/forgot-password"
+              className="text-sm text-primary-600 hover:underline"
+            >
+              Forgot password?
+            </Link>
           </div>
 
           {error && (

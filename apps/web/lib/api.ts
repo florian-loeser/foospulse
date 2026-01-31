@@ -119,6 +119,21 @@ class ApiClient {
     this.setToken(null)
   }
 
+  async forgotPassword(email: string) {
+    return this.request<{ message: string }>('POST', '/api/auth/forgot-password', { email })
+  }
+
+  async validateResetToken(token: string) {
+    return this.request<{ valid: boolean }>('GET', `/api/auth/reset-password/${token}`)
+  }
+
+  async resetPassword(token: string, password: string) {
+    return this.request<{ message: string }>('POST', '/api/auth/reset-password', {
+      token,
+      password,
+    })
+  }
+
   // Leagues
   async createLeague(name: string, slug: string) {
     return this.request<{ league: unknown }>('POST', '/api/leagues', {

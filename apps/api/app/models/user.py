@@ -14,9 +14,9 @@ from app.database import Base
 
 class User(Base):
     """User account for authentication."""
-    
+
     __tablename__ = "users"
-    
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -25,6 +25,10 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     display_name: Mapped[str] = mapped_column(String(100))
+    password_reset_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    password_reset_expiry: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow

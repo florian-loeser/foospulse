@@ -3,8 +3,8 @@ version: '3.8'
 services:
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.web
     ports:
       - "${WEB_PORT:-3100}:3000"
     environment:
@@ -12,15 +12,12 @@ services:
       - API_URL=http://api:8000
     depends_on:
       - api
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-      - /app/.next
+    restart: unless-stopped
 
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.api
     ports:
       - "${API_PORT:-8100}:8000"
     environment:
@@ -43,8 +40,8 @@ services:
 
   worker:
     build:
-      context: ./apps/worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.worker
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://foospulse:foospulse@postgres:5432/foospulse}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
