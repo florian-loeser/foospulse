@@ -44,9 +44,42 @@ export default function LiveMatchSetup() {
   const [teamBAttack, setTeamBAttack] = useState<string>('')
   const [teamBDefense, setTeamBDefense] = useState<string>('')
 
+  // Match prediction
+  const [prediction, setPrediction] = useState<{
+    team_a_win_probability: number
+    team_b_win_probability: number
+    team_a_elo: number
+    team_b_elo: number
+    predicted_winner: 'A' | 'B'
+    is_close: boolean
+  } | null>(null)
+
   useEffect(() => {
     loadData()
   }, [leagueSlug])
+
+  // Load prediction when teams are complete
+  useEffect(() => {
+    const loadPrediction = async () => {
+      const teamA = mode === '1v1' ? [teamAAttack] : [teamAAttack, teamADefense]
+      const teamB = mode === '1v1' ? [teamBAttack] : [teamBAttack, teamBDefense]
+
+      const requiredCount = mode === '1v1' ? 1 : 2
+      const teamAComplete = teamA.filter(Boolean).length === requiredCount
+      const teamBComplete = teamB.filter(Boolean).length === requiredCount
+
+      if (teamAComplete && teamBComplete) {
+        const result = await api.getMatchPrediction(leagueSlug, teamA.filter(Boolean), teamB.filter(Boolean))
+        if (result.data?.prediction) {
+          setPrediction(result.data.prediction)
+        }
+      } else {
+        setPrediction(null)
+      }
+    }
+
+    loadPrediction()
+  }, [leagueSlug, mode, teamAAttack, teamADefense, teamBAttack, teamBDefense])
 
   const loadData = async () => {
     const [playersResult, seasonsResult] = await Promise.all([
@@ -348,6 +381,44 @@ export default function LiveMatchSetup() {
             </div>
           </label>
         </div>
+
+        {/* Match Prediction */}
+        {prediction && (
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800/50">
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mb-2 text-center">Match Prediction</p>
+            <div className="flex items-center justify-between">
+              <div className="text-center flex-1">
+                <p className={`text-2xl font-bold ${prediction.team_a_win_probability > 50 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  {prediction.team_a_win_probability}%
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Blue ({prediction.team_a_elo})</p>
+              </div>
+              <div className="px-3">
+                <div className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
+                  <div
+                    className="h-full bg-blue-500"
+                    style={{ width: `${prediction.team_a_win_probability}%` }}
+                  />
+                  <div
+                    className="h-full bg-red-500"
+                    style={{ width: `${prediction.team_b_win_probability}%` }}
+                  />
+                </div>
+              </div>
+              <div className="text-center flex-1">
+                <p className={`text-2xl font-bold ${prediction.team_b_win_probability > 50 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  {prediction.team_b_win_probability}%
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Red ({prediction.team_b_elo})</p>
+              </div>
+            </div>
+            {prediction.is_close && (
+              <p className="text-xs text-center text-indigo-600 dark:text-indigo-400 mt-2">
+                Even matchup - could go either way!
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Fixed Bottom Button */}

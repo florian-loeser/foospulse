@@ -15,6 +15,7 @@ from app.models.stats import StatsSnapshot, RatingSnapshot
 from app.security import get_current_user
 from app.security.auth import get_optional_user
 from app.services.stats import compute_player_stats, compute_head_to_head
+from app.services.achievements import get_player_achievements, get_match_prediction
 
 router = APIRouter()
 
@@ -279,6 +280,53 @@ async def get_head_to_head(
 
     stats = await compute_head_to_head(db, player1, player2, league, season)
     return api_response(data={"head_to_head": stats})
+
+
+@router.get("/{league_slug}/stats/player/{player_id}/achievements")
+async def get_achievements(
+    league_slug: str,
+    player_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get player achievements."""
+    result = await db.execute(select(League).where(League.slug == league_slug))
+    league = result.scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail=api_response(error=api_error("NOT_FOUND", "League not found")))
+
+    try:
+        player_uuid = uuid.UUID(player_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=api_response(error=api_error("VALIDATION_ERROR", "Invalid player ID")))
+
+    achievements = await get_player_achievements(db, player_uuid, league.id)
+    return api_response(data={"achievements": achievements})
+
+
+@router.post("/{league_slug}/stats/predict")
+async def predict_match(
+    league_slug: str,
+    team_a: list[str] = Query(...),
+    team_b: list[str] = Query(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Predict match outcome based on team Elo ratings."""
+    result = await db.execute(select(League).where(League.slug == league_slug))
+    league = result.scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail=api_response(error=api_error("NOT_FOUND", "League not found")))
+
+    # Validate player IDs
+    try:
+        team_a_uuids = [uuid.UUID(pid) for pid in team_a]
+        team_b_uuids = [uuid.UUID(pid) for pid in team_b]
+    except ValueError:
+        raise HTTPException(status_code=400, detail=api_response(error=api_error("VALIDATION_ERROR", "Invalid player ID")))
+
+    prediction = await get_match_prediction(db, league.id, team_a_uuids, team_b_uuids)
+    return api_response(data={"prediction": prediction})
 
 
 @router.post("/{league_slug}/stats/recompute")

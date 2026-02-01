@@ -40,19 +40,43 @@ interface RatingHistoryPoint {
   label: string
 }
 
+interface Achievement {
+  type: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  unlocked_at: string
+}
+
+const ACHIEVEMENT_ICONS: Record<string, string> = {
+  trophy: '🏆',
+  goal: '🥅',
+  play: '🎮',
+  star: '⭐',
+  crown: '👑',
+  fire: '🔥',
+  shield: '🛡️',
+  sword: '⚔️',
+  dog: '🐕',
+  'arrow-up': '📈',
+}
+
 export default function PlayerPage() {
   const params = useParams()
   const leagueSlug = params.leagueSlug as string
   const playerId = params.playerId as string
   const [stats, setStats] = useState<any>(null)
   const [ratingHistory, setRatingHistory] = useState<RatingHistoryPoint[]>([])
+  const [achievements, setAchievements] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       api.getPlayerStats(leagueSlug, playerId),
-      api.getPlayerRatingHistory(leagueSlug, playerId)
-    ]).then(([statsRes, historyRes]) => {
+      api.getPlayerRatingHistory(leagueSlug, playerId),
+      api.getPlayerAchievements(leagueSlug, playerId)
+    ]).then(([statsRes, historyRes, achievementsRes]) => {
       setLoading(false)
       if (statsRes.data?.player_stats) setStats(statsRes.data.player_stats)
       if (historyRes.data?.history) {
@@ -61,6 +85,9 @@ export default function PlayerPage() {
           label: i === 0 ? 'Start' : `#${i}`
         }))
         setRatingHistory(history)
+      }
+      if (achievementsRes.data?.achievements) {
+        setAchievements(achievementsRes.data.achievements)
       }
     })
   }, [leagueSlug, playerId])
@@ -296,7 +323,7 @@ export default function PlayerPage() {
         )}
 
         {/* Gamelles */}
-        <div className="card">
+        <div className="card mb-4">
           <h2 className="font-semibold mb-4 text-black dark:text-white flex items-center gap-2">
             <span className="text-lg">🥅</span>
             Gamelles
@@ -312,6 +339,44 @@ export default function PlayerPage() {
             </div>
           </div>
         </div>
+
+        {/* Achievements */}
+        {achievements.length > 0 && (
+          <div className="card">
+            <h2 className="font-semibold mb-4 text-black dark:text-white flex items-center gap-2">
+              <span className="text-lg">🏆</span>
+              Achievements ({achievements.length})
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {achievements.map((achievement) => (
+                <div
+                  key={achievement.type}
+                  className={`rounded-xl p-3 ${
+                    achievement.color === 'gold' ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800' :
+                    achievement.color === 'purple' ? 'bg-purple-50 dark:bg-purple-900/20' :
+                    achievement.color === 'blue' ? 'bg-blue-50 dark:bg-blue-900/20' :
+                    achievement.color === 'green' ? 'bg-green-50 dark:bg-green-900/20' :
+                    achievement.color === 'red' ? 'bg-red-50 dark:bg-red-900/20' :
+                    achievement.color === 'orange' ? 'bg-orange-50 dark:bg-orange-900/20' :
+                    'bg-gray-50 dark:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-xl">{ACHIEVEMENT_ICONS[achievement.icon] || '🏅'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                        {achievement.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {achievement.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   )

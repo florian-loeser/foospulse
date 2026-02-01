@@ -305,6 +305,48 @@ class ApiClient {
     }>('GET', `/api/leagues/${leagueSlug}/stats/head-to-head?${params.toString()}`)
   }
 
+  async getPlayerAchievements(leagueSlug: string, playerId: string) {
+    return this.request<{
+      achievements: Array<{
+        type: string
+        name: string
+        description: string
+        icon: string
+        color: string
+        unlocked_at: string
+      }>
+    }>('GET', `/api/leagues/${leagueSlug}/stats/player/${playerId}/achievements`)
+  }
+
+  async getMatchPrediction(leagueSlug: string, teamA: string[], teamB: string[]) {
+    const params = new URLSearchParams()
+    teamA.forEach(id => params.append('team_a', id))
+    teamB.forEach(id => params.append('team_b', id))
+    return this.request<{
+      prediction: {
+        team_a_elo: number
+        team_b_elo: number
+        team_a_win_probability: number
+        team_b_win_probability: number
+        predicted_winner: 'A' | 'B'
+        is_close: boolean
+      }
+    }>('POST', `/api/leagues/${leagueSlug}/stats/predict?${params.toString()}`)
+  }
+
+  async getActivityFeed(leagueSlug: string, limit: number = 20) {
+    return this.request<{
+      activities: Array<{
+        id: string
+        type: string
+        message: string
+        player_nickname?: string
+        match_id?: string
+        created_at: string
+      }>
+    }>('GET', `/api/leagues/${leagueSlug}/activity?limit=${limit}`)
+  }
+
   // Artifacts
   async createArtifact(leagueSlug: string, seasonId: string, force: boolean = false) {
     const forceParam = force ? '?force=true' : ''

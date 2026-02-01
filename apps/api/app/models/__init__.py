@@ -18,6 +18,7 @@ from app.models.live_match import (
     LiveEventType,
 )
 from app.models.feedback import Feedback
+from app.models.achievement import PlayerAchievement, AchievementType, ACHIEVEMENT_INFO
 
 __all__ = [
     "User",
@@ -40,4 +41,7 @@ __all__ = [
     "LiveMatchMode",
     "LiveEventType",
     "Feedback",
+    "PlayerAchievement",
+    "AchievementType",
+    "ACHIEVEMENT_INFO",
 ]
