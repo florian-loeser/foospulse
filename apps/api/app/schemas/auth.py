@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
+from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -60,3 +61,15 @@ class ResetPasswordRequest(BaseModel):
     """Schema for setting new password."""
     token: str
     password: str = Field(..., min_length=8, max_length=128)
+
+
+class UpdateProfileRequest(BaseModel):
+    """Schema for updating user profile."""
+    display_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    email: Optional[EmailStr] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    """Schema for changing password when logged in."""
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)

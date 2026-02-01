@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { SkeletonLeaderboard } from '@/components/Skeleton'
+import { useToast } from '@/components/Toast'
 
 interface Entry {
   rank: number
@@ -17,12 +18,23 @@ interface Board {
   entries: Entry[]
 }
 
+type SortField = 'rank' | 'nickname' | 'value' | 'n_matches'
+type SortDir = 'asc' | 'desc'
+
 export default function LeaderboardsPage() {
   const params = useParams()
   const leagueSlug = params.leagueSlug as string
+  const { showToast } = useToast()
   const [boards, setBoards] = useState<Record<string, Board>>({})
   const [activeTab, setActiveTab] = useState('elo')
   const [loading, setLoading] = useState(true)
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('')
+  const [minMatches, setMinMatches] = useState(0)
+  const [sortField, setSortField] = useState<SortField>('rank')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     api.getLeaderboards(leagueSlug).then((res) => {
@@ -30,6 +42,65 @@ export default function LeaderboardsPage() {
       if (res.data?.leaderboards) setBoards(res.data.leaderboards as Record<string, Board>)
     })
   }, [leagueSlug])
+
+  // Filter and sort entries
+  const filteredEntries = useMemo(() => {
+    const currentBoard = boards[activeTab]
+    if (!currentBoard?.entries) return []
+
+    let entries = [...currentBoard.entries]
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      entries = entries.filter(e => e.nickname.toLowerCase().includes(query))
+    }
+
+    // Apply min matches filter
+    if (minMatches > 0) {
+      entries = entries.filter(e => e.n_matches >= minMatches)
+    }
+
+    // Apply sorting
+    entries.sort((a, b) => {
+      let cmp = 0
+      if (sortField === 'nickname') {
+        cmp = a.nickname.localeCompare(b.nickname)
+      } else {
+        cmp = (a[sortField] as number) - (b[sortField] as number)
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
+    return entries
+  }, [boards, activeTab, searchQuery, minMatches, sortField, sortDir])
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir(field === 'nickname' ? 'asc' : 'desc')
+    }
+  }
+
+  const exportCSV = () => {
+    const currentBoard = boards[activeTab]
+    if (!currentBoard) return
+
+    const headers = ['Rank', 'Player', currentBoard.name, 'Matches']
+    const rows = filteredEntries.map(e => [e.rank, e.nickname, e.value, e.n_matches])
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `leaderboard-${activeTab}-${leagueSlug}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast('Leaderboard exported', 'success')
+  }
 
   const tabs = [
     { id: 'elo', label: 'Elo Rating', icon: 'trophy' },
@@ -99,7 +170,7 @@ export default function LeaderboardsPage() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => { setActiveTab(tab.id); setSortField('rank'); setSortDir('asc'); }}
                 className={`px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
                   activeTab === tab.id
                     ? 'bg-amber-500 text-white shadow-md'
@@ -112,22 +183,81 @@ export default function LeaderboardsPage() {
           </div>
         </div>
 
+        {/* Search and Filters */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-3 mb-4 space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search players..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Filter Toggle & Export */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filters {minMatches > 0 && <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded text-xs">1</span>}
+            </button>
+            <button
+              onClick={exportCSV}
+              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export CSV
+            </button>
+          </div>
+
+          {/* Expanded Filters */}
+          {showFilters && (
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1.5">
+                Minimum matches played
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="20"
+                  value={minMatches}
+                  onChange={(e) => setMinMatches(parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+                <span className="text-sm font-medium text-gray-900 dark:text-white w-8 text-right">{minMatches}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Leaderboard */}
-        {currentBoard?.entries?.length ? (
+        {filteredEntries.length > 0 ? (
           <div className="space-y-4">
-            {/* Podium for top 3 */}
-            {currentBoard.entries.length >= 3 && (
+            {/* Podium for top 3 - only show if no filters applied */}
+            {!searchQuery && minMatches === 0 && sortField === 'rank' && boards[activeTab]?.entries?.length >= 3 && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4">
                 <div className="flex items-end justify-center gap-2 py-4">
                   {/* 2nd place */}
                   <div className="flex flex-col items-center">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold text-lg shadow-lg mb-2 ring-2 ring-white dark:ring-gray-700">
-                      {currentBoard.entries[1].nickname.slice(0, 2).toUpperCase()}
+                      {boards[activeTab].entries[1].nickname.slice(0, 2).toUpperCase()}
                     </div>
                     <p className="font-medium text-sm text-gray-900 dark:text-white truncate max-w-20">
-                      {currentBoard.entries[1].nickname}
+                      {boards[activeTab].entries[1].nickname}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatValue(activeTab, currentBoard.entries[1].value)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatValue(activeTab, boards[activeTab].entries[1].value)}</p>
                     <div className="bg-gradient-to-b from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 w-20 h-16 rounded-t-lg mt-2 flex items-center justify-center text-2xl font-bold text-white shadow-inner">
                       2
                     </div>
@@ -138,13 +268,13 @@ export default function LeaderboardsPage() {
                     <div className="relative">
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-2xl animate-bounce">👑</div>
                       <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-4 ring-yellow-300 dark:ring-yellow-400/50">
-                        {currentBoard.entries[0].nickname.slice(0, 2).toUpperCase()}
+                        {boards[activeTab].entries[0].nickname.slice(0, 2).toUpperCase()}
                       </div>
                     </div>
                     <p className="font-bold text-gray-900 dark:text-white truncate max-w-24 mt-2">
-                      {currentBoard.entries[0].nickname}
+                      {boards[activeTab].entries[0].nickname}
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{formatValue(activeTab, currentBoard.entries[0].value)}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{formatValue(activeTab, boards[activeTab].entries[0].value)}</p>
                     <div className="bg-gradient-to-b from-yellow-400 to-amber-500 w-24 h-20 rounded-t-lg mt-2 flex items-center justify-center text-3xl font-bold text-white shadow-inner">
                       1
                     </div>
@@ -153,12 +283,12 @@ export default function LeaderboardsPage() {
                   {/* 3rd place */}
                   <div className="flex flex-col items-center">
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-600 to-amber-700 flex items-center justify-center text-white font-bold shadow-lg ring-2 ring-white dark:ring-gray-700">
-                      {currentBoard.entries[2].nickname.slice(0, 2).toUpperCase()}
+                      {boards[activeTab].entries[2].nickname.slice(0, 2).toUpperCase()}
                     </div>
                     <p className="font-medium text-sm text-gray-900 dark:text-white truncate max-w-16 mt-2">
-                      {currentBoard.entries[2].nickname}
+                      {boards[activeTab].entries[2].nickname}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatValue(activeTab, currentBoard.entries[2].value)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatValue(activeTab, boards[activeTab].entries[2].value)}</p>
                     <div className="bg-gradient-to-b from-amber-600 to-amber-700 w-16 h-12 rounded-t-lg mt-2 flex items-center justify-center text-xl font-bold text-white shadow-inner">
                       3
                     </div>
@@ -167,48 +297,124 @@ export default function LeaderboardsPage() {
               </div>
             )}
 
-            {/* Full list */}
+            {/* Full list with sortable headers */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                <h2 className="font-semibold text-gray-900 dark:text-white">{currentBoard.name}</h2>
+              {/* Sortable Header */}
+              <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400">
+                <button
+                  onClick={() => handleSort('rank')}
+                  className="col-span-2 flex items-center gap-1 hover:text-amber-600 dark:hover:text-amber-400"
+                >
+                  Rank
+                  {sortField === 'rank' && (
+                    <svg className={`w-3 h-3 ${sortDir === 'desc' ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('nickname')}
+                  className="col-span-5 flex items-center gap-1 hover:text-amber-600 dark:hover:text-amber-400"
+                >
+                  Player
+                  {sortField === 'nickname' && (
+                    <svg className={`w-3 h-3 ${sortDir === 'desc' ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('n_matches')}
+                  className="col-span-2 flex items-center gap-1 hover:text-amber-600 dark:hover:text-amber-400"
+                >
+                  Games
+                  {sortField === 'n_matches' && (
+                    <svg className={`w-3 h-3 ${sortDir === 'desc' ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSort('value')}
+                  className="col-span-3 flex items-center justify-end gap-1 hover:text-amber-600 dark:hover:text-amber-400"
+                >
+                  {boards[activeTab]?.name || 'Value'}
+                  {sortField === 'value' && (
+                    <svg className={`w-3 h-3 ${sortDir === 'desc' ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {currentBoard.entries.map((entry, i) => {
+                {filteredEntries.map((entry, i) => {
                   const medal = getMedal(entry.rank)
                   return (
                     <div
                       key={i}
-                      className={`flex items-center gap-3 p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
+                      className={`grid grid-cols-12 gap-2 items-center p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
                         entry.rank <= 3 ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''
                       }`}
                     >
-                      <span
-                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${medal.bg} ${medal.text}`}
-                      >
-                        {entry.rank}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 dark:text-white truncate">{entry.nickname}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{entry.n_matches} matches</p>
+                      <div className="col-span-2">
+                        <span
+                          className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${medal.bg} ${medal.text}`}
+                        >
+                          {entry.rank}
+                        </span>
                       </div>
-                      <span className="font-bold text-lg text-gray-900 dark:text-white">
-                        {formatValue(activeTab, entry.value)}
-                      </span>
+                      <div className="col-span-5 min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">{entry.nickname}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{entry.n_matches}</p>
+                      </div>
+                      <div className="col-span-3 text-right">
+                        <span className="font-bold text-lg text-gray-900 dark:text-white">
+                          {formatValue(activeTab, entry.value)}
+                        </span>
+                      </div>
                     </div>
                   )
                 })}
               </div>
             </div>
+
+            {/* Results count */}
+            {(searchQuery || minMatches > 0) && (
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                Showing {filteredEntries.length} of {boards[activeTab]?.entries?.length || 0} players
+              </p>
+            )}
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm text-center py-12 px-4">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                {searchQuery || minMatches > 0 ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                )}
               </svg>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 font-medium">No data yet</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Play some matches to see the rankings</p>
+            {searchQuery || minMatches > 0 ? (
+              <>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">No matching players</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Try adjusting your filters</p>
+                <button
+                  onClick={() => { setSearchQuery(''); setMinMatches(0); }}
+                  className="mt-4 text-sm text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+                >
+                  Clear filters
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">No data yet</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Play some matches to see the rankings</p>
+              </>
+            )}
           </div>
         )}
       </div>

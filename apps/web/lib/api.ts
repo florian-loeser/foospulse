@@ -134,6 +134,21 @@ class ApiClient {
     })
   }
 
+  async updateProfile(data: { display_name?: string; email?: string }) {
+    return this.request<{ user: { id: string; email: string; display_name: string; created_at: string } }>(
+      'PATCH',
+      '/api/auth/me',
+      data
+    )
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ message: string }>('POST', '/api/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
+  }
+
   // Leagues
   async createLeague(name: string, slug: string) {
     return this.request<{ league: unknown }>('POST', '/api/leagues', {
@@ -253,6 +268,41 @@ class ApiClient {
       'GET',
       `/api/leagues/${leagueSlug}/stats/player/${playerId}${params}`
     )
+  }
+
+  async getPlayerRatingHistory(leagueSlug: string, playerId: string, seasonId?: string) {
+    const params = seasonId ? `?season_id=${seasonId}` : ''
+    return this.request<{
+      player_id: string
+      nickname: string
+      history: Array<{ rating: number; date: string; match_id: string | null }>
+    }>('GET', `/api/leagues/${leagueSlug}/stats/player/${playerId}/rating-history${params}`)
+  }
+
+  async getHeadToHead(leagueSlug: string, player1Id: string, player2Id: string, seasonId?: string) {
+    const params = new URLSearchParams({ player1_id: player1Id, player2_id: player2Id })
+    if (seasonId) params.append('season_id', seasonId)
+    return this.request<{
+      head_to_head: {
+        player1_id: string
+        player1_nickname: string
+        player2_id: string
+        player2_nickname: string
+        total_matches: number
+        same_team: { total: number; wins: number; losses: number }
+        opposing: { total: number; player1_wins: number; player2_wins: number }
+        matches: Array<{
+          match_id: string
+          played_at: string
+          mode: string
+          score: string
+          same_team: boolean
+          player1_team: string
+          player2_team: string
+          player1_won: boolean
+        }>
+      }
+    }>('GET', `/api/leagues/${leagueSlug}/stats/head-to-head?${params.toString()}`)
   }
 
   // Artifacts

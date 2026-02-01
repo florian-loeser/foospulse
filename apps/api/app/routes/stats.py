@@ -14,7 +14,7 @@ from app.models.player import Player
 from app.models.stats import StatsSnapshot, RatingSnapshot
 from app.security import get_current_user
 from app.security.auth import get_optional_user
-from app.services.stats import compute_player_stats
+from app.services.stats import compute_player_stats, compute_head_to_head
 
 router = APIRouter()
 
@@ -193,6 +193,92 @@ async def get_player_stats(
     
     stats = await compute_player_stats(db, player, league, season)
     return api_response(data={"player_stats": stats})
+
+
+@router.get("/{league_slug}/stats/player/{player_id}/rating-history")
+async def get_player_rating_history(
+    league_slug: str,
+    player_id: str,
+    season_id: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get player's rating history over time."""
+    league, season = await get_league_and_season(league_slug, season_id, current_user, db)
+
+    try:
+        player_uuid = uuid.UUID(player_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=api_response(error=api_error("VALIDATION_ERROR", "Invalid player ID")))
+
+    result = await db.execute(select(Player).where(Player.id == player_uuid).where(Player.league_id == league.id))
+    player = result.scalar_one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail=api_response(error=api_error("NOT_FOUND", "Player not found")))
+
+    # Get rating snapshots ordered by time
+    from app.models.match import Match
+    result = await db.execute(
+        select(RatingSnapshot, Match.played_at)
+        .join(Match, RatingSnapshot.as_of_match_id == Match.id)
+        .where(RatingSnapshot.player_id == player_uuid)
+        .where(RatingSnapshot.league_id == league.id)
+        .where(RatingSnapshot.season_id == season.id)
+        .order_by(Match.played_at.asc())
+    )
+    snapshots = result.all()
+
+    history = [
+        {
+            "rating": snap.rating,
+            "date": played_at.isoformat(),
+            "match_id": str(snap.as_of_match_id)
+        }
+        for snap, played_at in snapshots
+    ]
+
+    # Add starting point at 1200 if we have history
+    if history:
+        first_date = history[0]["date"]
+        history.insert(0, {"rating": 1200, "date": first_date, "match_id": None})
+
+    return api_response(data={
+        "player_id": player_id,
+        "nickname": player.nickname,
+        "history": history
+    })
+
+
+@router.get("/{league_slug}/stats/head-to-head")
+async def get_head_to_head(
+    league_slug: str,
+    player1_id: str = Query(...),
+    player2_id: str = Query(...),
+    season_id: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get head-to-head stats between two players."""
+    league, season = await get_league_and_season(league_slug, season_id, current_user, db)
+
+    try:
+        player1_uuid = uuid.UUID(player1_id)
+        player2_uuid = uuid.UUID(player2_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=api_response(error=api_error("VALIDATION_ERROR", "Invalid player ID")))
+
+    result = await db.execute(select(Player).where(Player.id == player1_uuid).where(Player.league_id == league.id))
+    player1 = result.scalar_one_or_none()
+    if not player1:
+        raise HTTPException(status_code=404, detail=api_response(error=api_error("NOT_FOUND", "Player 1 not found")))
+
+    result = await db.execute(select(Player).where(Player.id == player2_uuid).where(Player.league_id == league.id))
+    player2 = result.scalar_one_or_none()
+    if not player2:
+        raise HTTPException(status_code=404, detail=api_response(error=api_error("NOT_FOUND", "Player 2 not found")))
+
+    stats = await compute_head_to_head(db, player1, player2, league, season)
+    return api_response(data={"head_to_head": stats})
 
 
 @router.post("/{league_slug}/stats/recompute")

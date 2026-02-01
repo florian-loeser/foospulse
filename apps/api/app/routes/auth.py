@@ -13,7 +13,7 @@ from app.models.player import Player
 from app.models.live_match import LiveMatchSession, LiveMatchSessionPlayer, LiveMatchStatus
 from app.schemas.auth import (
     UserCreate, UserLogin, UserResponse, TokenResponse, MeResponse, MembershipInfo,
-    ForgotPasswordRequest, ResetPasswordRequest
+    ForgotPasswordRequest, ResetPasswordRequest, UpdateProfileRequest, ChangePasswordRequest
 )
 from app.security import (
     get_password_hash, verify_password, create_access_token, get_current_user, PasswordPolicy
@@ -190,6 +190,81 @@ async def get_me(
         "memberships": memberships,
         "active_live_match": active_live_match
     })
+
+
+@router.patch("/me")
+async def update_profile(
+    data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update current user's profile."""
+    # Check if email is being changed and if it's already taken
+    if data.email and data.email != current_user.email:
+        result = await db.execute(select(User).where(User.email == data.email))
+        existing_user = result.scalar_one_or_none()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=api_response(
+                    error=api_error("CONFLICT", "Email already registered")
+                )
+            )
+        current_user.email = data.email
+
+    if data.display_name:
+        current_user.display_name = data.display_name
+
+    await db.flush()
+
+    logger.info("profile_updated", user_id=str(current_user.id))
+
+    return api_response(data={
+        "user": {
+            "id": str(current_user.id),
+            "email": current_user.email,
+            "display_name": current_user.display_name,
+            "created_at": current_user.created_at.isoformat()
+        }
+    })
+
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Change password for logged-in user."""
+    # Verify current password
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=api_response(
+                error=api_error("UNAUTHORIZED", "Current password is incorrect")
+            )
+        )
+
+    # Validate new password against policy
+    is_valid, error_msg = PasswordPolicy.validate(data.new_password)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=api_response(
+                error=api_error("VALIDATION_ERROR", error_msg, {
+                    "field": "new_password",
+                    "policy": PasswordPolicy.get_policy_description()
+                })
+            )
+        )
+
+    # Update password
+    current_user.password_hash = get_password_hash(data.new_password)
+    await db.flush()
+
+    logger.info("password_changed", user_id=str(current_user.id))
+
+    return api_response(data={"message": "Password changed successfully."})
 
 
 @router.get("/password-policy")

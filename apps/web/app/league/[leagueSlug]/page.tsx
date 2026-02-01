@@ -29,6 +29,22 @@ interface LeaderboardEntry {
   rank: number
   nickname: string
   value: number
+  n_matches?: number
+}
+
+interface SynergyDuo {
+  player_a: string
+  player_b: string
+  wins: number
+  total: number
+  win_rate: number
+}
+
+interface LeagueStats {
+  totalMatches: number
+  totalPlayers: number
+  avgElo: number
+  bestDuo: SynergyDuo | null
 }
 
 export default function LeagueDashboard() {
@@ -39,6 +55,7 @@ export default function LeagueDashboard() {
   const [league, setLeague] = useState<League | null>(null)
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [topPlayers, setTopPlayers] = useState<LeaderboardEntry[]>([])
+  const [leagueStats, setLeagueStats] = useState<LeagueStats>({ totalMatches: 0, totalPlayers: 0, avgElo: 0, bestDuo: null })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -46,10 +63,11 @@ export default function LeagueDashboard() {
   }, [leagueSlug])
 
   const loadData = async () => {
-    const [leagueResult, matchesResult, leaderboardsResult] = await Promise.all([
+    const [leagueResult, matchesResult, leaderboardsResult, synergyResult] = await Promise.all([
       api.getLeague(leagueSlug),
       api.getMatches(leagueSlug),
       api.getLeaderboards(leagueSlug),
+      api.getSynergy(leagueSlug),
     ])
 
     setLoading(false)
@@ -62,11 +80,28 @@ export default function LeagueDashboard() {
     }
 
     setLeague(leagueResult.data?.league as League)
-    setRecentMatches((matchesResult.data?.matches as Match[])?.slice(0, 3) || [])
+    const matches = (matchesResult.data?.matches as Match[]) || []
+    setRecentMatches(matches.slice(0, 3))
 
     const boards = leaderboardsResult.data?.leaderboards as Record<string, { entries: LeaderboardEntry[] }> | undefined
-    if (boards?.elo?.entries) {
-      setTopPlayers(boards.elo.entries.slice(0, 3))
+    const eloEntries = boards?.elo?.entries || []
+    if (eloEntries.length > 0) {
+      setTopPlayers(eloEntries.slice(0, 3))
+
+      // Calculate league stats
+      const totalPlayers = eloEntries.length
+      const avgElo = Math.round(eloEntries.reduce((sum, p) => sum + p.value, 0) / totalPlayers)
+
+      // Get best duo from synergy
+      const synergy = synergyResult.data?.synergy as { best_duos?: SynergyDuo[] } | undefined
+      const bestDuo = synergy?.best_duos?.[0] || null
+
+      setLeagueStats({
+        totalMatches: matches.length,
+        totalPlayers,
+        avgElo,
+        bestDuo
+      })
     }
   }
 
@@ -173,7 +208,7 @@ export default function LeagueDashboard() {
         {/* Log Past Match - Secondary CTA */}
         <Link
           href={`/league/${leagueSlug}/log`}
-          className="block bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm active:scale-[0.98]"
+          className="block bg-white dark:bg-gray-800 rounded-xl p-4 mb-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm active:scale-[0.98]"
         >
           <div className="flex items-center justify-center gap-2 text-gray-700 dark:text-gray-300">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,6 +217,50 @@ export default function LeagueDashboard() {
             <p className="font-medium">Log Past Match</p>
           </div>
         </Link>
+
+        {/* League Stats Summary */}
+        {leagueStats.totalMatches > 0 && (
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-sm">
+              <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">{leagueStats.totalMatches}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Matches</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-sm">
+              <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{leagueStats.totalPlayers}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Players</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-sm">
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{leagueStats.avgElo}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Avg Elo</p>
+            </div>
+          </div>
+        )}
+
+        {/* Best Duo Widget */}
+        {leagueStats.bestDuo && (
+          <Link
+            href={`/league/${leagueSlug}/synergy`}
+            className="block bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 mb-4 border border-purple-100 dark:border-purple-800/50 hover:border-purple-200 dark:hover:border-purple-700 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-lg">
+                🤝
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mb-0.5">Best Duo</p>
+                <p className="font-bold text-gray-900 dark:text-white truncate">
+                  {leagueStats.bestDuo.player_a} & {leagueStats.bestDuo.player_b}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                  {Math.round(leagueStats.bestDuo.win_rate * 100)}%
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{leagueStats.bestDuo.total} games</p>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Top Players Widget */}
         {topPlayers.length > 0 && (
@@ -318,6 +397,28 @@ export default function LeagueDashboard() {
           </Link>
 
           <Link
+            href={`/league/${leagueSlug}/compare`}
+            className="bg-white dark:bg-gray-800 rounded-2xl py-6 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+          >
+            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <p className="font-medium text-gray-900 dark:text-white">Compare</p>
+          </Link>
+
+          <Link
+            href={`/league/${leagueSlug}/synergy`}
+            className="bg-white dark:bg-gray-800 rounded-2xl py-6 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+          >
+            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+              <span className="text-2xl">🤝</span>
+            </div>
+            <p className="font-medium text-gray-900 dark:text-white">Synergy</p>
+          </Link>
+
+          <Link
             href={`/league/${leagueSlug}/artifacts`}
             className="bg-white dark:bg-gray-800 rounded-2xl py-6 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:scale-[0.98]"
           >
@@ -327,6 +428,30 @@ export default function LeagueDashboard() {
               </svg>
             </div>
             <p className="font-medium text-gray-900 dark:text-white">Reports</p>
+          </Link>
+
+          <Link
+            href={`/league/${leagueSlug}/head-to-head`}
+            className="bg-white dark:bg-gray-800 rounded-2xl py-6 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+          >
+            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </div>
+            <p className="font-medium text-gray-900 dark:text-white">Head to Head</p>
+          </Link>
+
+          <Link
+            href={`/league/${leagueSlug}/seasons`}
+            className="bg-white dark:bg-gray-800 rounded-2xl py-6 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+          >
+            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p className="font-medium text-gray-900 dark:text-white">Seasons</p>
           </Link>
         </div>
       </div>

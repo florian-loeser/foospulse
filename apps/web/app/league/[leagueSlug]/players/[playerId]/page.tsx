@@ -4,6 +4,15 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 
 // Generate avatar color from name
 function getAvatarGradient(name: string): string {
@@ -24,17 +33,35 @@ function getAvatarGradient(name: string): string {
   return gradients[Math.abs(hash) % gradients.length]
 }
 
+interface RatingHistoryPoint {
+  rating: number
+  date: string
+  match_id: string | null
+  label: string
+}
+
 export default function PlayerPage() {
   const params = useParams()
   const leagueSlug = params.leagueSlug as string
   const playerId = params.playerId as string
   const [stats, setStats] = useState<any>(null)
+  const [ratingHistory, setRatingHistory] = useState<RatingHistoryPoint[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.getPlayerStats(leagueSlug, playerId).then(res => {
+    Promise.all([
+      api.getPlayerStats(leagueSlug, playerId),
+      api.getPlayerRatingHistory(leagueSlug, playerId)
+    ]).then(([statsRes, historyRes]) => {
       setLoading(false)
-      if (res.data?.player_stats) setStats(res.data.player_stats)
+      if (statsRes.data?.player_stats) setStats(statsRes.data.player_stats)
+      if (historyRes.data?.history) {
+        const history = historyRes.data.history.map((h, i) => ({
+          ...h,
+          label: i === 0 ? 'Start' : `#${i}`
+        }))
+        setRatingHistory(history)
+      }
     })
   }, [leagueSlug, playerId])
 
@@ -104,7 +131,74 @@ export default function PlayerPage() {
               {stats.rating} Elo
             </span>
           </p>
+          {/* Recent Form */}
+          {stats.recent_form && stats.recent_form.length > 0 && (
+            <div className="flex items-center justify-center gap-1 mt-3">
+              <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Form:</span>
+              {stats.recent_form.map((result: string, i: number) => (
+                <span
+                  key={i}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                    result === 'W'
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                      : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  {result}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Elo Progression Chart */}
+        {ratingHistory.length > 1 && (
+          <div className="card mb-4">
+            <h2 className="font-semibold mb-4 text-black dark:text-white flex items-center gap-2">
+              <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              Rating Progression
+            </h2>
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={ratingHistory}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:opacity-20" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  domain={['dataMin - 50', 'dataMax + 50']}
+                  width={40}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb',
+                    backgroundColor: 'rgba(255,255,255,0.95)',
+                  }}
+                  formatter={(value) => [`${value} Elo`, 'Rating']}
+                  labelFormatter={(label) => `Match ${label}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="rating"
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  dot={{ fill: '#22c55e', r: 3 }}
+                  activeDot={{ r: 5, fill: '#16a34a' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+              {ratingHistory.length - 1} matches played this season
+            </p>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -172,6 +266,34 @@ export default function PlayerPage() {
             </div>
           </div>
         </div>
+
+        {/* Best Partner & Worst Matchup */}
+        {(stats.best_partner_nickname || stats.worst_matchup_nickname) && (
+          <div className="card mb-4">
+            <h2 className="font-semibold mb-4 text-black dark:text-white flex items-center gap-2">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Matchups
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+              {stats.best_partner_nickname && (
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+                  <p className="text-xs text-green-600/70 dark:text-green-400/70 mb-1">Best Partner</p>
+                  <p className="font-bold text-green-700 dark:text-green-400 truncate">{stats.best_partner_nickname}</p>
+                  <p className="text-xs text-green-600/60 dark:text-green-400/60 mt-1">Highest win rate together</p>
+                </div>
+              )}
+              {stats.worst_matchup_nickname && (
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4">
+                  <p className="text-xs text-red-600/70 dark:text-red-400/70 mb-1">Toughest Rival</p>
+                  <p className="font-bold text-red-700 dark:text-red-400 truncate">{stats.worst_matchup_nickname}</p>
+                  <p className="text-xs text-red-600/60 dark:text-red-400/60 mt-1">Lowest win rate against</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Gamelles */}
         <div className="card">
