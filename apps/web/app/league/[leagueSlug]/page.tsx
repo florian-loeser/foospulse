@@ -431,18 +431,6 @@ export default function LeagueDashboard() {
           </Link>
 
           <Link
-            href={`/league/${leagueSlug}/head-to-head`}
-            className="bg-white dark:bg-gray-800 rounded-2xl py-6 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:scale-[0.98]"
-          >
-            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-              <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-            </div>
-            <p className="font-medium text-gray-900 dark:text-white">Head to Head</p>
-          </Link>
-
-          <Link
             href={`/league/${leagueSlug}/seasons`}
             className="bg-white dark:bg-gray-800 rounded-2xl py-6 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:scale-[0.98]"
           >

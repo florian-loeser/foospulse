@@ -29,6 +29,21 @@ interface PlayerStats {
   streak_type: string
 }
 
+interface HeadToHead {
+  player1_nickname: string
+  player2_nickname: string
+  total_matches: number
+  same_team: { total: number; wins: number; losses: number }
+  opposing: { total: number; player1_wins: number; player2_wins: number }
+  matches: Array<{
+    match_id: string
+    played_at: string
+    score: string
+    same_team: boolean
+    player1_won: boolean
+  }>
+}
+
 export default function ComparePage() {
   const params = useParams()
   const leagueSlug = params.leagueSlug as string
@@ -38,6 +53,7 @@ export default function ComparePage() {
   const [player2Id, setPlayer2Id] = useState<string>('')
   const [player1Stats, setPlayer1Stats] = useState<PlayerStats | null>(null)
   const [player2Stats, setPlayer2Stats] = useState<PlayerStats | null>(null)
+  const [h2h, setH2h] = useState<HeadToHead | null>(null)
   const [loading, setLoading] = useState(true)
   const [comparing, setComparing] = useState(false)
 
@@ -54,14 +70,16 @@ export default function ComparePage() {
     if (!player1Id || !player2Id) return
     setComparing(true)
 
-    const [res1, res2] = await Promise.all([
+    const [res1, res2, h2hRes] = await Promise.all([
       api.getPlayerStats(leagueSlug, player1Id),
       api.getPlayerStats(leagueSlug, player2Id),
+      api.getHeadToHead(leagueSlug, player1Id, player2Id),
     ])
 
     setComparing(false)
     if (res1.data?.player_stats) setPlayer1Stats(res1.data.player_stats as PlayerStats)
     if (res2.data?.player_stats) setPlayer2Stats(res2.data.player_stats as PlayerStats)
+    if (h2hRes.data?.head_to_head) setH2h(h2hRes.data.head_to_head as HeadToHead)
   }
 
   const comparisonItems = useMemo(() => {
@@ -173,7 +191,7 @@ export default function ComparePage() {
             </svg>
             Compare Players
           </h1>
-          <p className="text-white/70 text-sm mt-1">See how players stack up against each other</p>
+          <p className="text-white/70 text-sm mt-1">Stats comparison and head-to-head history</p>
         </div>
       </div>
 
@@ -191,6 +209,7 @@ export default function ComparePage() {
                   setPlayer1Id(e.target.value)
                   setPlayer1Stats(null)
                   setPlayer2Stats(null)
+                  setH2h(null)
                 }}
                 className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
               >
@@ -214,6 +233,7 @@ export default function ComparePage() {
                   setPlayer2Id(e.target.value)
                   setPlayer1Stats(null)
                   setPlayer2Stats(null)
+                  setH2h(null)
                 }}
                 className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
               >
@@ -287,8 +307,123 @@ export default function ComparePage() {
               </div>
             </div>
 
+            {/* Head-to-Head Stats */}
+            {h2h && h2h.total_matches > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    Head to Head ({h2h.total_matches} games)
+                  </h3>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* As Opponents */}
+                  {h2h.opposing.total > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">As Opponents</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 text-center">
+                          <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                            {h2h.opposing.player1_wins}
+                          </p>
+                        </div>
+                        <div className="text-gray-300 dark:text-gray-600 text-sm">vs</div>
+                        <div className="flex-1 text-center">
+                          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                            {h2h.opposing.player2_wins}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
+                        <div
+                          className="h-full bg-indigo-500"
+                          style={{ width: `${(h2h.opposing.player1_wins / h2h.opposing.total) * 100}%` }}
+                        />
+                        <div
+                          className="h-full bg-purple-500"
+                          style={{ width: `${(h2h.opposing.player2_wins / h2h.opposing.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* As Teammates */}
+                  {h2h.same_team.total > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">As Teammates</p>
+                      <div className="flex items-center justify-center gap-6">
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{h2h.same_team.wins}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Wins</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{h2h.same_team.losses}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Losses</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {Math.round((h2h.same_team.wins / h2h.same_team.total) * 100)}%
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Win Rate</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Matches */}
+                {h2h.matches.length > 0 && (
+                  <div className="border-t border-gray-100 dark:border-gray-700">
+                    <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Recent Encounters</p>
+                    </div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {h2h.matches.slice(0, 5).map((match) => (
+                        <Link
+                          key={match.match_id}
+                          href={`/league/${leagueSlug}/matches/${match.match_id}`}
+                          className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${match.same_team ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
+                              {match.same_team ? 'Team' : 'vs'}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(match.played_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">{match.score}</span>
+                            {!match.same_team && (
+                              <span className={`text-xs ${match.player1_won ? 'text-indigo-600 dark:text-indigo-400' : 'text-purple-600 dark:text-purple-400'}`}>
+                                {match.player1_won ? player1Stats.nickname : player2Stats.nickname}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* No H2H matches */}
+            {h2h && h2h.total_matches === 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No matches played together yet
+                </p>
+              </div>
+            )}
+
             {/* Stat Comparisons */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-white">Stats Comparison</h3>
+              </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {comparisonItems.map((item) => {
                   const p1Better = item.higherBetter ? item.p1 > item.p2 : item.p1 < item.p2
@@ -369,7 +504,7 @@ export default function ComparePage() {
               Select two players to compare
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-              See who has the edge in head-to-head stats
+              View stats comparison and head-to-head history
             </p>
           </div>
         ) : null}
