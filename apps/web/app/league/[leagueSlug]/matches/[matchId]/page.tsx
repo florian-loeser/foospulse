@@ -455,6 +455,22 @@ export default function MatchDetailPage() {
             </button>
           </div>
         )}
+
+        {/* Return to League Button */}
+        <div className="mt-6 space-y-3">
+          <Link
+            href={`/league/${leagueSlug}`}
+            className="block w-full py-3 px-4 bg-primary-600 text-white text-center font-medium rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Return to League
+          </Link>
+          <Link
+            href={`/league/${leagueSlug}/live`}
+            className="block w-full py-3 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-center font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            Start New Match
+          </Link>
+        </div>
       </div>
 
       {/* Void Confirmation Modal */}

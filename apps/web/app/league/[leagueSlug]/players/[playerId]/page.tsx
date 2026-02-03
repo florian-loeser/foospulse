@@ -322,24 +322,6 @@ export default function PlayerPage() {
           </div>
         )}
 
-        {/* Gamelles */}
-        <div className="card mb-4">
-          <h2 className="font-semibold mb-4 text-black dark:text-white flex items-center gap-2">
-            <span className="text-lg">🥅</span>
-            Gamelles
-          </h2>
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div className="bg-red-50 dark:bg-red-900/30 rounded-xl p-4">
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.gamelles_received}</p>
-              <p className="text-xs text-red-600/70 dark:text-red-400/70 mt-1">Received</p>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/30 rounded-xl p-4">
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.gamelles_delivered}</p>
-              <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">Delivered</p>
-            </div>
-          </div>
-        </div>
-
         {/* Achievements */}
         {achievements.length > 0 && (
           <div className="card">

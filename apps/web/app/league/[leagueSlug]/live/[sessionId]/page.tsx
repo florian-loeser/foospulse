@@ -399,14 +399,14 @@ export default function ScorerPage() {
                   <button
                     onClick={() => recordLobbed('A')}
                     disabled={actionLoading}
-                    className="py-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-xl font-bold active:bg-red-200 dark:active:bg-red-900/50 disabled:opacity-50 press-effect"
+                    className="py-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-xl font-bold active:bg-yellow-200 dark:active:bg-yellow-900/50 disabled:opacity-50 press-effect"
                   >
                     Blue
                   </button>
                   <button
                     onClick={() => recordLobbed('B')}
                     disabled={actionLoading}
-                    className="py-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-xl font-bold active:bg-red-200 dark:active:bg-red-900/50 disabled:opacity-50 press-effect"
+                    className="py-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-xl font-bold active:bg-yellow-200 dark:active:bg-yellow-900/50 disabled:opacity-50 press-effect"
                   >
                     Red
                   </button>

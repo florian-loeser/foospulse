@@ -9,6 +9,7 @@ import { vibrateLight } from '@/lib/haptics'
 interface Player {
   id: string
   nickname: string
+  rating: number
 }
 
 interface Season {
@@ -53,6 +54,57 @@ export default function LiveMatchSetup() {
     predicted_winner: 'A' | 'B'
     is_close: boolean
   } | null>(null)
+
+  // 2v2 Team assignment mode
+  const [teamAssignMode, setTeamAssignMode] = useState<'manual' | 'balanced' | 'random'>('manual')
+  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
+
+  // Calculate balanced teams from 4 selected players
+  const getBalancedTeams = (playerIds: string[]): { teamA: string[], teamB: string[] } | null => {
+    if (playerIds.length !== 4) return null
+
+    const playerData = playerIds.map(id => {
+      const player = players.find(p => p.id === id)
+      return { id, rating: player?.rating || 1200 }
+    }).sort((a, b) => b.rating - a.rating) // Sort by rating descending
+
+    // Best balance: highest + lowest vs middle two
+    // This minimizes the rating difference between teams
+    const teamA = [playerData[0].id, playerData[3].id] // Strongest + weakest
+    const teamB = [playerData[1].id, playerData[2].id] // Middle two
+
+    return { teamA, teamB }
+  }
+
+  // Randomize teams from 4 selected players
+  const getRandomTeams = (playerIds: string[]): { teamA: string[], teamB: string[] } | null => {
+    if (playerIds.length !== 4) return null
+
+    const shuffled = [...playerIds].sort(() => Math.random() - 0.5)
+    return {
+      teamA: [shuffled[0], shuffled[1]],
+      teamB: [shuffled[2], shuffled[3]]
+    }
+  }
+
+  // Apply team assignment
+  const applyTeamAssignment = (teams: { teamA: string[], teamB: string[] }) => {
+    setTeamAAttack(teams.teamA[0])
+    setTeamADefense(teams.teamA[1])
+    setTeamBAttack(teams.teamB[0])
+    setTeamBDefense(teams.teamB[1])
+  }
+
+  // Toggle player selection for 2v2 balanced/random modes
+  const togglePlayerSelection = (playerId: string) => {
+    setSelectedPlayers(prev => {
+      if (prev.includes(playerId)) {
+        return prev.filter(id => id !== playerId)
+      }
+      if (prev.length >= 4) return prev
+      return [...prev, playerId]
+    })
+  }
 
   useEffect(() => {
     loadData()
@@ -273,6 +325,109 @@ export default function LiveMatchSetup() {
               </option>
             ))}
           </select>
+        )}
+
+        {/* 2v2 Team Assignment Mode */}
+        {mode === '2v2' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Team Assignment</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => { setTeamAssignMode('balanced'); setSelectedPlayers([]); vibrateLight(); }}
+                className={`py-3 rounded-xl font-medium text-sm transition-all ${
+                  teamAssignMode === 'balanced'
+                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 ring-2 ring-purple-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                Balanced
+              </button>
+              <button
+                onClick={() => { setTeamAssignMode('random'); setSelectedPlayers([]); vibrateLight(); }}
+                className={`py-3 rounded-xl font-medium text-sm transition-all ${
+                  teamAssignMode === 'random'
+                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 ring-2 ring-orange-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                Random
+              </button>
+              <button
+                onClick={() => { setTeamAssignMode('manual'); setSelectedPlayers([]); vibrateLight(); }}
+                className={`py-3 rounded-xl font-medium text-sm transition-all ${
+                  teamAssignMode === 'manual'
+                    ? 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 ring-2 ring-gray-400'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                Manual
+              </button>
+            </div>
+
+            {/* Player selection for Balanced/Random */}
+            {(teamAssignMode === 'balanced' || teamAssignMode === 'random') && (
+              <div className="mt-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  Select 4 players ({selectedPlayers.length}/4)
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {players.map((player) => (
+                    <button
+                      key={player.id}
+                      onClick={() => { togglePlayerSelection(player.id); vibrateLight(); }}
+                      disabled={!selectedPlayers.includes(player.id) && selectedPlayers.length >= 4}
+                      className={`p-3 rounded-xl text-left transition-all ${
+                        selectedPlayers.includes(player.id)
+                          ? 'bg-primary-100 dark:bg-primary-900/30 border-2 border-primary-500 text-primary-700 dark:text-primary-400'
+                          : selectedPlayers.length >= 4
+                          ? 'bg-gray-50 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500'
+                          : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <p className="font-medium text-sm">{player.nickname}</p>
+                      <p className="text-xs opacity-60">{player.rating} Elo</p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Apply Buttons */}
+                {selectedPlayers.length === 4 && (
+                  <div className="mt-4 space-y-2">
+                    {teamAssignMode === 'balanced' && (
+                      <button
+                        onClick={() => {
+                          const teams = getBalancedTeams(selectedPlayers)
+                          if (teams) {
+                            applyTeamAssignment(teams)
+                            setTeamAssignMode('manual')
+                          }
+                          vibrateLight()
+                        }}
+                        className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors"
+                      >
+                        Apply Balanced Teams
+                      </button>
+                    )}
+                    {teamAssignMode === 'random' && (
+                      <button
+                        onClick={() => {
+                          const teams = getRandomTeams(selectedPlayers)
+                          if (teams) {
+                            applyTeamAssignment(teams)
+                            setTeamAssignMode('manual')
+                          }
+                          vibrateLight()
+                        }}
+                        className="w-full py-3 bg-orange-600 text-white rounded-xl font-medium hover:bg-orange-700 transition-colors"
+                      >
+                        Randomize Teams
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Team Blue */}
