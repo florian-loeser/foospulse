@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { api } from '@/lib/api'
 
@@ -12,9 +12,14 @@ import { api } from '@/lib/api'
 export function ActiveMatchRedirect() {
   const router = useRouter()
   const pathname = usePathname()
-  const [checking, setChecking] = useState(false)
+  const checkingRef = useRef(false)
 
   useEffect(() => {
+    // Don't check if pathname is not yet available
+    if (!pathname) {
+      return
+    }
+
     // Don't check if we're already on a live match page or auth pages
     if (pathname.startsWith('/live/') || pathname.startsWith('/auth/') || pathname === '/help') {
       return
@@ -27,8 +32,8 @@ export function ActiveMatchRedirect() {
     }
 
     const checkActiveMatch = async () => {
-      if (checking) return
-      setChecking(true)
+      if (checkingRef.current) return
+      checkingRef.current = true
 
       try {
         const result = await api.getMe()
@@ -40,12 +45,12 @@ export function ActiveMatchRedirect() {
       } catch {
         // Ignore errors - user might not be logged in
       } finally {
-        setChecking(false)
+        checkingRef.current = false
       }
     }
 
     checkActiveMatch()
-  }, [pathname, router, checking])
+  }, [pathname, router])
 
   return null
 }
