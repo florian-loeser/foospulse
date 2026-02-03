@@ -21,8 +21,15 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # Add '2v1' to matchmode enum
     op.execute("ALTER TYPE matchmode ADD VALUE IF NOT EXISTS '2v1'")
-    # Add '2v1' to livematchmode enum
-    op.execute("ALTER TYPE livematchmode ADD VALUE IF NOT EXISTS '2v1'")
+    # Add '2v1' to livematchmode enum (if it exists)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'livematchmode') THEN
+                EXECUTE 'ALTER TYPE livematchmode ADD VALUE IF NOT EXISTS ''2v1''';
+            END IF;
+        END $$;
+    """)
 
 
 def downgrade() -> None:
