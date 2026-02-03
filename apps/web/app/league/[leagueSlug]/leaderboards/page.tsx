@@ -211,7 +211,6 @@ export default function LeaderboardsPage() {
     { id: 'win_rate', label: 'Win Rate', icon: 'percent' },
     { id: 'attack_win_rate', label: 'Attack', icon: 'sword' },
     { id: 'defense_win_rate', label: 'Defense', icon: 'shield' },
-    { id: 'gamelles_delivered', label: 'Gamellized', icon: 'goal' },
   ]
 
   const formatValue = (id: string, val: number) => {
