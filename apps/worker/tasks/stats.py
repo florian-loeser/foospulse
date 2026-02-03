@@ -200,8 +200,15 @@ def compute_synergy(matches, mp_by_match, player_map):
                 "player2_id": str(p2), "player2_nickname": player_map.get(p2, "Unknown"),
                 "wins": stats["wins"], "losses": stats["losses"], "win_rate": stats["wins"] / total, "n_matches": total
             })
-    pairs.sort(key=lambda x: (-x["win_rate"], -x["n_matches"]))
-    return {"best_duos": pairs[:10], "worst_duos": sorted(pairs, key=lambda x: (x["win_rate"], -x["n_matches"]))[:10]}
+
+    # Split into best (>=50% win rate) and worst (<50% win rate) to avoid overlap
+    best = [p for p in pairs if p["win_rate"] >= 0.5]
+    worst = [p for p in pairs if p["win_rate"] < 0.5]
+
+    best.sort(key=lambda x: (-x["win_rate"], -x["n_matches"]))
+    worst.sort(key=lambda x: (x["win_rate"], -x["n_matches"]))
+
+    return {"best_duos": best[:10], "worst_duos": worst[:10]}
 
 
 def compute_matchups(matches, mp_by_match, player_map):
