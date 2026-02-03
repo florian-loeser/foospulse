@@ -6,10 +6,11 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 
 interface SynergyDuo {
-  player_a: string
-  player_b: string
+  player1_nickname: string
+  player2_nickname: string
   wins: number
-  total: number
+  losses: number
+  n_matches: number
   win_rate: number
 }
 
@@ -144,7 +145,7 @@ export default function SynergyPage() {
                 const winRatePercent = Math.round(duo.win_rate * 100)
                 return (
                   <div
-                    key={`${duo.player_a}-${duo.player_b}`}
+                    key={`${duo.player1_nickname}-${duo.player2_nickname}`}
                     className={`flex items-center gap-3 p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
                       rank <= 3 && activeTab === 'best' ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''
                     }`}
@@ -154,10 +155,10 @@ export default function SynergyPage() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 dark:text-white truncate">
-                        {duo.player_a} & {duo.player_b}
+                        {duo.player1_nickname} & {duo.player2_nickname}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {duo.wins}W - {duo.total - duo.wins}L ({duo.total} games)
+                        {duo.wins}W - {duo.losses}L ({duo.n_matches} games)
                       </p>
                     </div>
                     <div className="text-right">
