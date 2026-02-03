@@ -24,6 +24,7 @@ class LiveMatchStatus(str, enum.Enum):
 class LiveMatchMode(str, enum.Enum):
     ONE_V_ONE = "1v1"
     TWO_V_TWO = "2v2"
+    TWO_V_ONE = "2v1"
 
 
 class LiveEventType(str, enum.Enum):

@@ -145,16 +145,44 @@ async def list_players(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """List all players in the league."""
+    """List all players in the league with their current ratings."""
+    from app.models.stats import RatingSnapshot
+    from app.models.season import Season, SeasonStatus
+    from sqlalchemy import func
+
     league, _ = await get_league_and_check_membership(league_slug, current_user, db)
-    
+
+    # Get active season
+    result = await db.execute(
+        select(Season)
+        .where(Season.league_id == league.id)
+        .where(Season.status == SeasonStatus.ACTIVE)
+    )
+    active_season = result.scalar_one_or_none()
+
     result = await db.execute(
         select(Player)
         .where(Player.league_id == league.id)
         .order_by(Player.nickname)
     )
     players = result.scalars().all()
-    
+
+    # Get latest ratings for all players in the active season
+    player_ratings = {}
+    if active_season:
+        # Subquery to get the latest rating snapshot for each player
+        for player in players:
+            result = await db.execute(
+                select(RatingSnapshot.rating)
+                .where(RatingSnapshot.player_id == player.id)
+                .where(RatingSnapshot.league_id == league.id)
+                .where(RatingSnapshot.season_id == active_season.id)
+                .order_by(RatingSnapshot.computed_at.desc())
+                .limit(1)
+            )
+            rating = result.scalar_one_or_none()
+            player_ratings[player.id] = rating or 1200
+
     return api_response(data={
         "players": [
             {
@@ -163,6 +191,7 @@ async def list_players(
                 "avatar_url": p.avatar_url,
                 "is_guest": p.is_guest,
                 "user_id": str(p.user_id) if p.user_id else None,
+                "rating": player_ratings.get(p.id, 1200),
                 "created_at": p.created_at.isoformat()
             }
             for p in players

@@ -16,6 +16,7 @@ from app.database import Base
 class MatchMode(str, enum.Enum):
     ONE_V_ONE = "1v1"
     TWO_V_TWO = "2v2"
+    TWO_V_ONE = "2v1"
 
 
 class MatchStatus(str, enum.Enum):

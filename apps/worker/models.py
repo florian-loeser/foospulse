@@ -37,6 +37,7 @@ class SeasonStatus(str, enum.Enum):
 class MatchMode(str, enum.Enum):
     ONE_V_ONE = "1v1"
     TWO_V_TWO = "2v2"
+    TWO_V_ONE = "2v1"
 
 
 class MatchStatus(str, enum.Enum):
@@ -72,6 +73,35 @@ class AuditAction(str, enum.Enum):
     ARTIFACT_START = "artifact_start"
     ARTIFACT_COMPLETE = "artifact_complete"
     ARTIFACT_FAIL = "artifact_fail"
+
+
+class AchievementType(str, enum.Enum):
+    """Achievement types."""
+    # Milestones
+    FIRST_WIN = "first_win"
+    FIRST_GAMELLE = "first_gamelle"
+    MATCHES_10 = "matches_10"
+    MATCHES_50 = "matches_50"
+    MATCHES_100 = "matches_100"
+    WINS_10 = "wins_10"
+    WINS_50 = "wins_50"
+    WINS_100 = "wins_100"
+
+    # Streaks
+    WIN_STREAK_3 = "win_streak_3"
+    WIN_STREAK_5 = "win_streak_5"
+    WIN_STREAK_10 = "win_streak_10"
+
+    # Gamelles
+    GAMELLES_5 = "gamelles_5"
+    GAMELLES_10 = "gamelles_10"
+    GAMELLE_MASTER = "gamelle_master"
+
+    # Special
+    COMEBACK_KING = "comeback_king"
+    FLAWLESS = "flawless"
+    GIANT_SLAYER = "giant_slayer"
+    UNDERDOG = "underdog"
 
 
 # Models
@@ -188,3 +218,14 @@ class AuditLog(Base):
     league_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     payload_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class PlayerAchievement(Base):
+    __tablename__ = "player_achievements"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    player_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("players.id"))
+    league_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("leagues.id"))
+    achievement_type: Mapped[str] = mapped_column(String(50))
+    unlocked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    trigger_match_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("matches.id"), nullable=True)
+    progress_value: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

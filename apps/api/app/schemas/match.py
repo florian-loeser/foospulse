@@ -23,7 +23,7 @@ class GamelleInput(BaseModel):
 class MatchCreate(BaseModel):
     """Schema for match creation."""
     season_id: UUID
-    mode: str = Field(..., pattern='^(1v1|2v2)$')
+    mode: str = Field(..., pattern='^(1v1|2v2|2v1)$')
     played_at: Optional[datetime] = None
     team_a_score: int = Field(..., ge=0, le=10)
     team_b_score: int = Field(..., ge=0, le=10)

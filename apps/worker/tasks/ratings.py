@@ -264,18 +264,33 @@ def update_ratings_for_match(self, match_id: str):
             
             # Calculate new ratings
             new_ratings = {}
-            
+
+            # 2v1 mode: solo player (team B) gets 1.5x rating change as handicap bonus
+            is_2v1 = mode == "2v1"
+            solo_multiplier = 1.5  # Solo player gains/loses 50% more
+            duo_multiplier = 0.75  # Duo players gain/lose 25% less (it's easier as a duo)
+
             for mp in team_a_players:
                 old_rating = player_ratings[mp.player_id]
                 expected = calculate_expected_score(old_rating, team_b_avg)
                 actual = calculate_actual_score(team_a_won, match.team_a_score, match.team_b_score)
-                new_ratings[mp.player_id] = calculate_new_rating(old_rating, expected, actual)
+                base_change = calculate_new_rating(old_rating, expected, actual) - old_rating
+                if is_2v1:
+                    # Duo team gets reduced rating change
+                    new_ratings[mp.player_id] = old_rating + round(base_change * duo_multiplier)
+                else:
+                    new_ratings[mp.player_id] = old_rating + base_change
 
             for mp in team_b_players:
                 old_rating = player_ratings[mp.player_id]
                 expected = calculate_expected_score(old_rating, team_a_avg)
                 actual = calculate_actual_score(not team_a_won, match.team_b_score, match.team_a_score)
-                new_ratings[mp.player_id] = calculate_new_rating(old_rating, expected, actual)
+                base_change = calculate_new_rating(old_rating, expected, actual) - old_rating
+                if is_2v1:
+                    # Solo player gets boosted rating change
+                    new_ratings[mp.player_id] = old_rating + round(base_change * solo_multiplier)
+                else:
+                    new_ratings[mp.player_id] = old_rating + base_change
             
             # Create snapshots
             for player_id, new_rating in new_ratings.items():

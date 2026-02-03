@@ -59,27 +59,42 @@ async def get_league_and_check_membership(
 
 def validate_match_players(mode: str, players: list) -> dict:
     errors = {}
-    expected_count = 2 if mode == "1v1" else 4
-    if len(players) != expected_count:
-        errors["players"] = f"{mode} requires exactly {expected_count} players"
-        return errors
-    
+
     team_a = [p for p in players if p.team == "A"]
     team_b = [p for p in players if p.team == "B"]
-    expected_per_team = 1 if mode == "1v1" else 2
-    
-    if len(team_a) != expected_per_team or len(team_b) != expected_per_team:
-        errors["teams"] = f"Each team must have exactly {expected_per_team} player(s)"
-        return errors
-    
-    if mode == "2v2":
+
+    if mode == "1v1":
+        if len(players) != 2:
+            errors["players"] = "1v1 requires exactly 2 players"
+            return errors
+        if len(team_a) != 1 or len(team_b) != 1:
+            errors["teams"] = "Each team must have exactly 1 player"
+            return errors
+    elif mode == "2v2":
+        if len(players) != 4:
+            errors["players"] = "2v2 requires exactly 4 players"
+            return errors
+        if len(team_a) != 2 or len(team_b) != 2:
+            errors["teams"] = "Each team must have exactly 2 players"
+            return errors
         team_a_positions = {p.position for p in team_a}
         team_b_positions = {p.position for p in team_b}
         if team_a_positions != {"attack", "defense"}:
             errors["team_a_positions"] = "Blue team must have one attacker and one defender"
         if team_b_positions != {"attack", "defense"}:
             errors["team_b_positions"] = "Red team must have one attacker and one defender"
-    
+    elif mode == "2v1":
+        if len(players) != 3:
+            errors["players"] = "2v1 requires exactly 3 players"
+            return errors
+        # Team A (duo) has 2 players, Team B (solo) has 1 player
+        if len(team_a) != 2 or len(team_b) != 1:
+            errors["teams"] = "2v1 requires 2 players on Blue team and 1 player on Red team"
+            return errors
+        team_a_positions = {p.position for p in team_a}
+        if team_a_positions != {"attack", "defense"}:
+            errors["team_a_positions"] = "Blue team must have one attacker and one defender"
+
     return errors
 
 

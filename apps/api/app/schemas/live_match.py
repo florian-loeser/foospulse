@@ -16,7 +16,7 @@ class LiveMatchPlayerInput(BaseModel):
 class LiveMatchCreate(BaseModel):
     """Schema for creating a live match session."""
     season_id: UUID
-    mode: str = Field(..., pattern='^(1v1|2v2)$')
+    mode: str = Field(..., pattern='^(1v1|2v2|2v1)$')
     players: List[LiveMatchPlayerInput]
     generate_scorer_secret: bool = Field(
         default=False,
