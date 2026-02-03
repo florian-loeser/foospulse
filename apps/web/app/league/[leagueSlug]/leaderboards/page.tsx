@@ -7,6 +7,109 @@ import { api } from '@/lib/api'
 import { SkeletonLeaderboard } from '@/components/Skeleton'
 import { useToast } from '@/components/Toast'
 
+function EloExplainer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-xl max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <span className="text-2xl">🏆</span> How to Climb the Elo Ladder
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-4 text-sm">
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+            <h4 className="font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
+              <span>✅</span> What helps your rating
+            </h4>
+            <ul className="space-y-2 text-green-700 dark:text-green-400">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span><strong>Beat higher-rated players</strong> — Bigger upset = bigger gains</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span><strong>Win by large margins</strong> — A 10-0 win rewards more than 10-9</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span><strong>Consistency</strong> — Steady wins build rating over time</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4">
+            <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center gap-2">
+              <span>❌</span> What hurts your rating
+            </h4>
+            <ul className="space-y-2 text-red-700 dark:text-red-400">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span><strong>Losing to lower-rated players</strong> — The bigger the upset, the bigger the loss</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span><strong>Losing by large margins</strong> — A 0-10 loss hurts more than 9-10</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span><strong>Only playing weaker opponents</strong> — Small gains, big risk</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+            <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+              <span>💡</span> Pro tips
+            </h4>
+            <ul className="space-y-2 text-blue-700 dark:text-blue-400">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span>In doubles, team average rating matters — a strong partner helps!</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span>New players start at 1200 — early matches have high volatility</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span>Challenge the top players — even a close loss teaches you something</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4">
+            <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+              <span>📊</span> The formula
+            </h4>
+            <p className="text-gray-600 dark:text-gray-400 text-xs font-mono">
+              Rating change = K × (actual - expected)<br/>
+              K = 32, expected = 1/(1 + 10^((opponent - you)/400))
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full mt-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-xl transition-colors"
+        >
+          Got it!
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface Entry {
   rank: number
   nickname: string
@@ -35,6 +138,7 @@ export default function LeaderboardsPage() {
   const [sortField, setSortField] = useState<SortField>('rank')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [showFilters, setShowFilters] = useState(false)
+  const [showEloExplainer, setShowEloExplainer] = useState(false)
 
   useEffect(() => {
     api.getLeaderboards(leagueSlug).then((res) => {
@@ -386,6 +490,19 @@ export default function LeaderboardsPage() {
                 Showing {filteredEntries.length} of {boards[activeTab]?.entries?.length || 0} players
               </p>
             )}
+
+            {/* Elo Explainer Button - only show on Elo tab */}
+            {activeTab === 'elo' && (
+              <button
+                onClick={() => setShowEloExplainer(true)}
+                className="w-full py-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm text-gray-600 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                How do I improve my Elo rating?
+              </button>
+            )}
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm text-center py-12 px-4">
@@ -417,6 +534,9 @@ export default function LeaderboardsPage() {
             )}
           </div>
         )}
+
+        {/* Elo Explainer Modal */}
+        <EloExplainer isOpen={showEloExplainer} onClose={() => setShowEloExplainer(false)} />
       </div>
     </main>
   )
